@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Vocab Revision</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 30px auto;
+      padding: 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 15px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 0 20px rgba(0,0,0,0.3);
+    }
+
+    input, button, select {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
+
+    input {
+      width: 65%;
+    }
+
+    button {
+      background: #ffffff;
+      color: #333;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #ddd;
+      transform: scale(1.05);
+    }
+
+    .box {
+      margin-top: 20px;
+      white-space: pre-line;
+      background: rgba(0,0,0,0.2);
+      padding: 15px;
+      border-radius: 10px;
+    }
+
+    canvas {
+      background: white;
+      border-radius: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>📘 Vocab Revision</h1>
+
+<button onclick="resetAll()">🔄 Reset</button>
+<button onclick="exportData()">⬇ Backup</button>
+<input type="file" onchange="importData(event)">
+
+<h3 id="stats"></h3>
+<h3 id="streak"></h3>
+
+<select id="langSelect">
+  <option value="hi">Hindi</option>
+  <option value="pa">Punjabi</option>
+  <option value="ta">Tamil</option>
+  <option value="bn">Bengali</option>
+  <option value="mr">Marathi</option>
+  <option value="gu">Gujarati</option>
+</select>
+
+<br>
+
+<input id="wordInput" placeholder="Enter word">
+<button onclick="addWord()">Add Word</button>
+
+<div class="box">
+  <h2>Meaning + Sentence:</h2>
+  <p id="meaning"></p>
+</div>
+
+<div class="box">
+  <h2>Revision:</h2>
+  <p id="revision"></p>
+</div>
+
+<div class="box">
+  <h2>🧠 Quiz:</h2>
+  <p id="question"></p>
+  <div id="options"></div>
+</div>
+
+<canvas id="chart" width="300" height="150"></canvas>
+
+</div>
+
+<script>
+
+let words = JSON.parse(localStorage.getItem("words")) || [];
+let dataStore = JSON.parse(localStorage.getItem("dataStore")) || {};
+let weakWords = JSON.parse(localStorage.getItem("weakWords")) || [];
+let index = JSON.parse(localStorage.getItem("index")) || 0;
+let streak = JSON.parse(localStorage.getItem("streak")) || 0;
+let lastDate = localStorage.getItem("lastDate") || "";
+let progress = JSON.parse(localStorage.getItem("progress")) || {};
+let chartInstance = null;
+
+updateStreak();
+updateUI();
+generateQuiz();
+drawChart();
+
+function save() {
+  localStorage.setItem("words", JSON.stringify(words));
+  localStorage.setItem("dataStore", JSON.stringify(dataStore));
+  localStorage.setItem("weakWords", JSON.stringify(weakWords));
+  localStorage.setItem("index", index);
+  localStorage.setItem("streak", streak);
+  localStorage.setItem("lastDate", lastDate);
+  localStorage.setItem("progress", JSON.stringify(progress));
+}
+
+function updateStreak() {
+  let today = new Date().toDateString();
+
+  if (lastDate !== today) {
+    if (lastDate === new Date(Date.now()-86400000).toDateString()) {
+      streak++;
+    } else {
+      streak = 1;
+    }
+    lastDate = today;
+  }
+
+  save();
+  document.getElementById("streak").innerText = "🔥 Streak: " + streak;
+}
+
+async function addWord() {
+  let word = document.getElementById("wordInput").value.trim().toLowerCase();
+  let lang = document.getElementById("langSelect").value;
+
+  if (!word) return alert("Enter word");
+  if (words.includes(word)) return alert("Already added");
+
+  try {
+    let res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+    let data = await res.json();
+
+    if (!data[0]) return alert("Invalid word");
+
+    let meaning = data[0].meanings[0].definitions[0].definition;
+    let example = data[0].meanings[0].definitions[0].example || "No example";
+
+    let transRes = await fetch(
+      `https://api.mymemory.translated.net/get?q=${meaning}&langpair=en|${lang}`
+    );
+    let transData = await transRes.json();
+
+    let translated = transData.responseData.translatedText || "No translation";
+
+    words.push(word);
+    dataStore[word] = { meaning, translated, example, lang };
+
+    let today = new Date().toDateString();
+    progress[today] = (progress[today] || 0) + 1;
+
+    save();
+    updateUI();
+    drawChart();
+
+    document.getElementById("meaning").innerText =
+`${word}
+
+EN: ${meaning}
+${lang.toUpperCase()}: ${translated}
+
+${example}`;
+
+  } catch {
+    alert("Error fetching word");
+  }
+}
+
+function updateUI() {
+  document.getElementById("stats").innerText =
+    `Total: ${words.length} | Weak: ${weakWords.length}`;
+
+  if (words.length === 0) return;
+
+  let rev = [];
+  let count = Math.min(4, words.length);
+
+  for (let i = 0; i < count; i++) {
+    let w = words[(index + i) % words.length];
+    let info = dataStore[w];
+
+    rev.push(`${w}
+
+EN: ${info.meaning}
+${info.lang.toUpperCase()}: ${info.translated}
+
+${info.example}`);
+  }
+
+  document.getElementById("revision").innerText =
+    rev.join("\n\n------\n\n");
+}
+
+function nextRevision() {
+  if (words.length === 0) return;
+  index = (index + 4) % words.length;
+  save();
+  updateUI();
+  generateQuiz();
+}
+
+setInterval(nextRevision, 10000);
+
+function generateQuiz() {
+  if (words.length < 4) return;
+
+  let word = words[Math.floor(Math.random()*words.length)];
+  let correct = dataStore[word].meaning;
+
+  let opts = [correct];
+
+  while (opts.length < 4) {
+    let w = words[Math.floor(Math.random()*words.length)];
+    let m = dataStore[w].meaning;
+    if (!opts.includes(m)) opts.push(m);
+  }
+
+  opts.sort(()=>Math.random()-0.5);
+
+  document.getElementById("question").innerText = word;
+
+  let html = "";
+  opts.forEach(o=>{
+    html += `<button onclick="check('${word}','${encodeURIComponent(o)}')">${o}</button><br>`;
+  });
+
+  document.getElementById("options").innerHTML = html;
+  window.answer = correct;
+}
+
+function check(word, ans) {
+  ans = decodeURIComponent(ans);
+
+  if (ans === window.answer) {
+    alert("✅");
+    weakWords = weakWords.filter(w=>w!==word);
+  } else {
+    alert("❌");
+    if (!weakWords.includes(word)) weakWords.push(word);
+  }
+
+  save();
+  generateQuiz();
+}
+
+function exportData() {
+  let data = JSON.stringify(localStorage);
+  let blob = new Blob([data]);
+  let a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "vocab_backup.json";
+  a.click();
+}
+
+function importData(e) {
+  let file = e.target.files[0];
+  let reader = new FileReader();
+  reader.onload = function() {
+    let data = JSON.parse(reader.result);
+    for (let key in data) localStorage.setItem(key, data[key]);
+    location.reload();
+  };
+  reader.readAsText(file);
+}
+
+function drawChart() {
+  let ctx = document.getElementById("chart").getContext("2d");
+
+  if (chartInstance) chartInstance.destroy();
+
+  chartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: Object.keys(progress),
+      datasets: [{
+        label: "Words per Day",
+        data: Object.values(progress),
+      }]
+    }
+  });
+}
+
+function resetAll() {
+  if (confirm("Reset everything?")) {
+    localStorage.clear();
+    location.reload();
+  }
+}
+
+</script>
+
+</body>
+</html>
+
