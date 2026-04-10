@@ -18,7 +18,7 @@ let currentWord=null;
 let currentAnswer="";
 let revInt=null;
 let quizRunning=false;
-let chart=null; // 🔥 graph fix
+let chart=null;
 
 // AI MEMORY
 const BASE_INTERVAL = 1;
@@ -26,11 +26,11 @@ const EASE = 2.5;
 
 // BACKUP
 let backupFrequency = localStorage.getItem("backup_freq") || "daily";
-let lastBackupTime = localStorage.getItem("last_backup") || 0;
+let lastBackupTime = Number(localStorage.getItem("last_backup")) || 0;
 
 // LOCAL
 let xp=Number(localStorage.getItem("xp"))||0;
-let streak=Number(localStorage.getItem("streak"))||0;
+let streakCount=Number(localStorage.getItem("streak"))||0;
 let lastDate=localStorage.getItem("lastDate")||"";
 
 // AUTH
@@ -66,17 +66,17 @@ function updateStreak(){
 
  if(lastDate!==today){
   if(lastDate===new Date(Date.now()-86400000).toDateString()){
-    streak++;
+    streakCount++;
   }else{
-    streak=1;
+    streakCount=1;
   }
   lastDate=today;
  }
 
- localStorage.setItem("streak",streak);
+ localStorage.setItem("streak",streakCount);
  localStorage.setItem("lastDate",lastDate);
 
- document.getElementById("streak").innerText="🔥 Streak: "+streak;
+ document.getElementById("streak").innerText="🔥 Streak: "+streakCount;
 }
 
 // XP
@@ -86,7 +86,7 @@ function updateXP(){
  localStorage.setItem("xp",xp);
  document.getElementById("xp").innerText="⭐ XP: "+xp;
 
- updateGraph(); // 🔥
+ updateGraph();
 }
 
 // ADD WORD
@@ -124,9 +124,10 @@ async function addWord(){
 
  wordInput.value="";
 
- meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
+ document.getElementById("meaningBox").innerText=
+ `${cap(word)}\n${meaning}\n${trans}`;
 
- currentWord={word}; // 🔥 speak fix
+ currentWord={word};
 
  loadWords();
 
@@ -156,7 +157,7 @@ async function loadWords(){
  updateProgress();
  showRevision();
  generateQuiz();
- aiSuggestion(); // 🔥
+ aiSuggestion();
 }
 
 // PROGRESS
@@ -171,7 +172,7 @@ function updateProgress(){
 function showRevision(){
 
  if(!allWords.length){
-  output.innerText="🎉 No due words!";
+  document.getElementById("output").innerText="🎉 No due words!";
   return;
  }
 
@@ -182,7 +183,7 @@ function showRevision(){
   t+=`${cap(w.word)}\n${w.meaning}\n${w.trans}\n\n`;
  }
 
- output.innerText=t;
+ document.getElementById("output").innerText=t;
 }
 
 function nextRevision(){
@@ -196,7 +197,7 @@ function generateQuiz(){
  if(!quizRunning) return;
 
  if(allWords.length<1){
-  quizBox.innerText="No due words";
+  document.getElementById("quizBox").innerText="No due words";
   return;
  }
 
@@ -220,7 +221,7 @@ function generateQuiz(){
   html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
  });
 
- quizBox.innerHTML=html;
+ document.getElementById("quizBox").innerHTML=html;
 }
 
 // CHECK
@@ -256,7 +257,7 @@ async function checkAnswer(ans){
 
 // PLAY
 function toggleRevision(){
- let btn=revBtn;
+ let btn=document.getElementById("revBtn");
 
  if(revInt){
   clearInterval(revInt);
@@ -269,7 +270,7 @@ function toggleRevision(){
 }
 
 function toggleQuiz(){
- let btn=quizBtn;
+ let btn=document.getElementById("quizBtn");
 
  quizRunning=!quizRunning;
 
@@ -281,32 +282,31 @@ function toggleQuiz(){
  }
 }
 
-// 🔊 SPEAK
-function speakCurrent(){
- if(!currentWord) return;
- let u=new SpeechSynthesisUtterance(currentWord.word);
- speechSynthesis.speak(u);
-}
-
-// 🤖 AI SUGGEST
+// AI SUGGEST
 function aiSuggestion(){
 
+ let el=document.getElementById("aiSuggest");
+ if(!el) return;
+
  if(!allWords.length){
-  aiSuggest.innerText="No data";
+  el.innerText="No data";
   return;
  }
 
  let weak=allWords.filter(w=>w.level<=1);
 
  if(weak.length){
-  aiSuggest.innerText="🤖 Focus: "+weak.slice(0,3).map(w=>cap(w.word)).join(", ");
+  el.innerText="🤖 Focus: "+weak.slice(0,3).map(w=>cap(w.word)).join(", ");
  }else{
-  aiSuggest.innerText="🔥 All strong!";
+  el.innerText="🔥 All strong!";
  }
 }
 
-// 📊 GRAPH
+// GRAPH
 function updateGraph(){
+
+ let ctx=document.getElementById("xpChart");
+ if(!ctx || typeof Chart==="undefined") return;
 
  let history=JSON.parse(localStorage.getItem("xp_history")||"[]");
 
@@ -315,9 +315,7 @@ function updateGraph(){
 
  localStorage.setItem("xp_history",JSON.stringify(history));
 
- let ctx=document.getElementById("xpChart");
-
- if(chart) chart.destroy(); // 🔥 fix
+ if(chart) chart.destroy();
 
  chart=new Chart(ctx,{
   type:"line",
@@ -331,7 +329,7 @@ function updateGraph(){
  });
 }
 
-// BACKUP SYSTEM (same as before)
+// BACKUP
 function setBackupFrequency(freq){
  backupFrequency=freq;
  localStorage.setItem("backup_freq",freq);
@@ -339,6 +337,7 @@ function setBackupFrequency(freq){
 }
 
 async function autoBackup(){
+
  let now=Date.now();
  let diff=now-lastBackupTime;
 
