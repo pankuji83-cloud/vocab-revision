@@ -1,3 +1,7 @@
+let allWords = [];
+let revIndex = 0;
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -143,16 +147,22 @@ async function addWord() {
 
 // LOAD WORDS
 async function loadWords() {
-  let snapshot = await db.collection("users").doc(userId).collection("words").get();
 
-  let text = "Your Words:\n\n";
+  let snapshot = await db.collection("users")
+    .doc(userId)
+    .collection("words")
+    .get();
+
+  allWords = [];
 
   snapshot.forEach(doc => {
-    let d = doc.data();
-    text += `${d.word}\nMeaning: ${d.meaning}\nHindi: ${d.hindi}\nExample: ${d.example}\n\n------\n\n`;
+    allWords.push(doc.data());
   });
 
-  document.getElementById("output").innerText = text;
+  // 🔥 Alphabetical sort
+  allWords.sort((a, b) => a.word.localeCompare(b.word));
+
+  showRevision();
 }
 </script>
 
