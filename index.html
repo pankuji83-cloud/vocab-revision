@@ -1,5 +1,8 @@
 <script>
 
+// Ensure DOM fully loaded before running app
+window.addEventListener("DOMContentLoaded", function(){
+
 // FIREBASE
 // SAFE FIREBASE INIT (prevents duplicate initialization crash)
 if (!firebase.apps.length) {
@@ -12,6 +15,13 @@ if (!firebase.apps.length) {
 
 const auth=firebase.auth();
 const db=firebase.firestore();
+
+// SAFE DOM REFERENCES (prevents undefined element crashes)
+const loginPage = document.getElementById("loginPage");
+const appPage = document.getElementById("appPage");
+const email = document.getElementById("email");
+const password = document.getElementById("password");
+const wordInput = document.getElementById("wordInput");
 
 // STATE
 let userId="";
@@ -138,7 +148,12 @@ async function addWord(){
  let lang=document.getElementById("lang").value;
  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
  let td=await t.json();
- let trans=td.responseData.translatedText;
+ let trans =
+ td &&
+ td.responseData &&
+ td.responseData.translatedText
+ ? td.responseData.translatedText
+ : word;
 
  let now=Date.now();
 
@@ -264,7 +279,7 @@ function generateQuiz(){
  let html=`<h3>${cap(currentWord.word)}</h3>`;
 
  opts.forEach(o=>{
-  html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
+  html+=`<button onclick="checkAnswer(this.dataset.ans)" data-ans="${encodeURIComponent(o)}">${o}</button>`;
  });
 
  document.getElementById("quizBox").innerHTML=html;
@@ -272,6 +287,8 @@ function generateQuiz(){
 
 // CHECK
 async function checkAnswer(ans){
+
+ ans = decodeURIComponent(ans);
 
  let now=Date.now();
 
@@ -363,7 +380,9 @@ function updateGraph(){
 
  let history=JSON.parse(localStorage.getItem("xp_history")||"[]");
 
+ if(history[history.length-1] !== xp){
  history.push(xp);
+}
  if(history.length>10) history.shift();
 
  localStorage.setItem("xp_history",JSON.stringify(history));
@@ -432,5 +451,8 @@ async function autoBackup(){
 // HELPERS
 function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);} 
 function toggleDark(){document.body.classList.toggle("dark");}
+
+
+});
 
 </script>
