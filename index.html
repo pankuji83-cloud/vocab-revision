@@ -1,11 +1,14 @@
 <script>
 
 // FIREBASE
-firebase.initializeApp({
- apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
- authDomain:"vocab-revision-a9f9e.firebaseapp.com",
- projectId:"vocab-revision-a9f9e"
-});
+// SAFE FIREBASE INIT (prevents duplicate initialization crash)
+if (!firebase.apps.length) {
+ firebase.initializeApp({
+  apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
+  authDomain:"vocab-revision-a9f9e.firebaseapp.com",
+  projectId:"vocab-revision-a9f9e"
+ });
+}
 
 const auth=firebase.auth();
 const db=firebase.firestore();
