@@ -1,3 +1,8 @@
+let weakWords = [];
+let currentWord = null;
+let currentAnswer = "";
+
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -23,6 +28,7 @@
 <button onclick="addWord()">Add Word</button>
 
 <h3 id="output"></h3>
+<div id="quizBox"></div>
 
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -204,3 +210,64 @@ setInterval(nextRevision, 10000);
 
 </body>
 </html>
+
+
+function generateQuiz() {
+
+  if (allWords.length < 4) return;
+
+  let pool = [...allWords];
+
+  // 🔥 Weak words ko priority do
+  if (weakWords.length > 0 && Math.random() < 0.7) {
+    let weak = weakWords[Math.floor(Math.random() * weakWords.length)];
+    currentWord = allWords.find(w => w.word === weak);
+  } else {
+    currentWord = pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  currentAnswer = currentWord.meaning;
+
+  let options = [currentAnswer];
+
+  while (options.length < 4) {
+    let random = pool[Math.floor(Math.random() * pool.length)].meaning;
+    if (!options.includes(random)) {
+      options.push(random);
+    }
+  }
+
+  options.sort(() => Math.random() - 0.5);
+
+  let html = `<h3>🧠 Quiz: ${currentWord.word}</h3>`;
+
+  options.forEach(opt => {
+    html += `<button onclick="checkAnswer('${opt.replace(/'/g,"")}')">${opt}</button><br>`;
+  });
+
+  document.getElementById("quizBox").innerHTML = html;
+}
+
+
+function checkAnswer(ans) {
+
+  if (ans === currentAnswer) {
+    alert("✅ Correct!");
+
+    // weak se hatao
+    weakWords = weakWords.filter(w => w !== currentWord.word);
+
+  } else {
+    alert("❌ Wrong!");
+
+    // weak me add karo
+    if (!weakWords.includes(currentWord.word)) {
+      weakWords.push(currentWord.word);
+    }
+  }
+
+  generateQuiz();
+}
+
+
+setInterval(generateQuiz, 15000);
