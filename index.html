@@ -1,10 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Vocab Revision</title>
+  <title>Vocab Revision Pro</title>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      color: #333;
+    }
+
+    .container {
+      max-width: 500px;
+      margin: 30px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      width: 100%;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 8px;
+      border: none;
+      background: #4facfe;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: #007bff;
+    }
+
+    .box {
+      background: #f4f6f8;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 15px;
+      white-space: pre-line;
+    }
+
+    .quiz button {
+      background: #28a745;
+    }
+
+    .quiz button:hover {
+      background: #1e7e34;
+    }
+
+    .level {
+      font-size: 12px;
+      color: gray;
+    }
+  </style>
 </head>
 
 <body>
+
+<div class="container">
 
 <h1>📘 Vocab Revision</h1>
 
@@ -16,25 +92,23 @@
 <button onclick="login()">Login</button>
 <button onclick="logout()">Logout</button>
 
-<h3 id="user"></h3>
+<h3 id="user">Not logged in</h3>
 
 <!-- ADD WORD -->
 <input id="wordInput" placeholder="Enter word">
 <button onclick="addWord()">Add Word</button>
 
-<h3 id="output"></h3>
+<!-- OUTPUT -->
+<div class="box" id="output">No words yet</div>
 
 <!-- QUIZ -->
-<div id="quizBox"></div>
+<div class="box quiz" id="quizBox"></div>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</div>
 
 <script>
 
-// 🔥 CONFIG
+// CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
   authDomain: "vocab-revision-a9f9e.firebaseapp.com",
@@ -47,44 +121,32 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 
 let userId = "";
-
-// 🔥 SYSTEM VARIABLES
 let allWords = [];
 let revIndex = 0;
-let weakWords = [];
 let currentWord = null;
 let currentAnswer = "";
 
-// SIGNUP
+// AUTH
 function signup() {
-  let email = document.getElementById("email").value;
-  let pass = document.getElementById("password").value;
-
-  auth.createUserWithEmailAndPassword(email, pass)
+  auth.createUserWithEmailAndPassword(email.value, password.value)
     .then(() => alert("Signup success"))
     .catch(e => alert(e.message));
 }
 
-// LOGIN
 function login() {
-  let email = document.getElementById("email").value;
-  let pass = document.getElementById("password").value;
-
-  auth.signInWithEmailAndPassword(email, pass)
+  auth.signInWithEmailAndPassword(email.value, password.value)
     .then(() => alert("Login success"))
     .catch(e => alert(e.message));
 }
 
-// LOGOUT
 function logout() {
   auth.signOut();
 }
 
-// USER STATE
 auth.onAuthStateChanged(user => {
   if (user) {
     userId = user.uid;
-    document.getElementById("user").innerText = "Logged in: " + user.email;
+    user.innerText = "Logged in: " + user.email;
     loadWords();
   } else {
     userId = "";
@@ -95,167 +157,129 @@ auth.onAuthStateChanged(user => {
 // ADD WORD
 async function addWord() {
 
-  if (!userId) {
-    alert("Login first!");
-    return;
-  }
+  if (!userId) return alert("Login first!");
 
-  let word = document.getElementById("wordInput").value.toLowerCase().trim();
+  let word = wordInput.value.trim().toLowerCase();
+  if (!word) return alert("Enter word");
 
-  if (!word) return alert("Enter word!");
+  let res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+  let data = await res.json();
 
-  // duplicate check
-  let existing = await db.collection("users")
-    .doc(userId)
-    .collection("words")
-    .where("word", "==", word)
-    .get();
+  if (!data[0]) return alert("Invalid word");
 
-  if (!existing.empty) {
-    alert("Word already exists!");
-    return;
-  }
+  let meaning = data[0].meanings[0].definitions[0].definition;
+  let example = data[0].meanings[0].definitions[0].example || "No example";
 
-  try {
-    let res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-    let data = await res.json();
+  let trans = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|hi`);
+  let tdata = await trans.json();
+  let hindi = tdata.responseData.translatedText;
 
-    if (!data[0]) {
-      alert("Invalid word!");
-      return;
-    }
-
-    let meaning = data[0].meanings[0].definitions[0].definition;
-    let example = data[0].meanings[0].definitions[0].example || "No example";
-
-    let transRes = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|hi`);
-    let transData = await transRes.json();
-    let hindi = transData.responseData.translatedText;
-
-    await db.collection("users").doc(userId).collection("words").add({
-      word,
-      meaning,
-      example,
-      hindi
-    });
-
-    loadWords();
-
-  } catch (e) {
-    alert("Error!");
-  }
-}
-
-// LOAD WORDS
-async function loadWords() {
-
-  let snapshot = await db.collection("users")
-    .doc(userId)
-    .collection("words")
-    .get();
-
-  allWords = [];
-
-  snapshot.forEach(doc => {
-    allWords.push(doc.data());
+  await db.collection("users").doc(userId).collection("words").add({
+    word, meaning, example, hindi, level: 0
   });
 
-  allWords.sort((a, b) => a.word.localeCompare(b.word));
-
-  showRevision();
-  generateQuiz(); // 🔥 start quiz
+  loadWords();
 }
 
-// SHOW REVISION
+// LOAD
+async function loadWords() {
+
+  let snap = await db.collection("users").doc(userId).collection("words").get();
+
+  allWords = [];
+  snap.forEach(doc => {
+    allWords.push({ ...doc.data(), id: doc.id });
+  });
+
+  allWords.sort((a,b)=>(a.level||0)-(b.level||0)||a.word.localeCompare(b.word));
+
+  showRevision();
+  generateQuiz();
+}
+
+// REVISION UI
 function showRevision() {
 
-  if (allWords.length === 0) {
-    document.getElementById("output").innerText = "No words yet";
+  if (!allWords.length) {
+    output.innerText = "No words yet";
     return;
   }
 
-  let text = "📚 Revision:\n\n";
+  let text = "";
 
-  let count = Math.min(4, allWords.length);
+  for (let i=0;i<Math.min(4,allWords.length);i++) {
+    let w = allWords[(revIndex+i)%allWords.length];
 
-  for (let i = 0; i < count; i++) {
-    let w = allWords[(revIndex + i) % allWords.length];
-
-    text += `${w.word}
-Meaning: ${w.meaning}
-Hindi: ${w.hindi}
-Example: ${w.example}
+    text += `${w.word} (Level ${w.level})
+${w.meaning}
+${w.hindi}
+${w.example}
 
 ------\n`;
   }
 
-  document.getElementById("output").innerText = text;
+  output.innerText = text;
 }
 
-// NEXT REVISION
 function nextRevision() {
-  if (allWords.length === 0) return;
-
   revIndex = (revIndex + 4) % allWords.length;
   showRevision();
 }
 
-// QUIZ SYSTEM
+// QUIZ
 function generateQuiz() {
 
   if (allWords.length < 4) {
-    document.getElementById("quizBox").innerText = "Add at least 4 words for quiz";
+    quizBox.innerText = "Add 4 words";
     return;
   }
 
-  let pool = [...allWords];
-
-  if (weakWords.length > 0 && Math.random() < 0.7) {
-    let weak = weakWords[Math.floor(Math.random() * weakWords.length)];
-    currentWord = allWords.find(w => w.word === weak);
-  } else {
-    currentWord = pool[Math.floor(Math.random() * pool.length)];
-  }
+  let pool = [...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
+  currentWord = pool[Math.floor(Math.random()*Math.min(5,pool.length))];
 
   currentAnswer = currentWord.meaning;
 
   let options = [currentAnswer];
 
-  while (options.length < 4) {
-    let random = pool[Math.floor(Math.random() * pool.length)].meaning;
-    if (!options.includes(random)) options.push(random);
+  while(options.length<4){
+    let r = allWords[Math.floor(Math.random()*allWords.length)].meaning;
+    if(!options.includes(r)) options.push(r);
   }
 
-  options.sort(() => Math.random() - 0.5);
+  options.sort(()=>Math.random()-0.5);
 
-  let html = `<h3>🧠 Quiz: ${currentWord.word}</h3>`;
+  let html = `<h3>${currentWord.word}</h3>`;
 
-  options.forEach(opt => {
-    html += `<button onclick="checkAnswer('${opt.replace(/'/g,"")}')">${opt}</button><br>`;
+  options.forEach(opt=>{
+    html+=`<button onclick="checkAnswer('${opt.replace(/'/g,"")}')">${opt}</button>`;
   });
 
-  document.getElementById("quizBox").innerHTML = html;
+  quizBox.innerHTML = html;
 }
 
-// CHECK ANSWER
-function checkAnswer(ans) {
+// CHECK
+async function checkAnswer(ans) {
 
-  if (ans === currentAnswer) {
-    alert("✅ Correct!");
-    weakWords = weakWords.filter(w => w !== currentWord.word);
+  let newLevel = currentWord.level || 0;
+
+  if(ans===currentAnswer){
+    alert("✅");
+    newLevel = Math.min(newLevel+1,4);
   } else {
-    alert("❌ Wrong!");
-    if (!weakWords.includes(currentWord.word)) {
-      weakWords.push(currentWord.word);
-    }
+    alert("❌");
+    newLevel = Math.max(newLevel-1,0);
   }
 
-  generateQuiz();
+  await db.collection("users").doc(userId)
+    .collection("words").doc(currentWord.id)
+    .update({level:newLevel});
+
+  loadWords();
 }
 
-// AUTO SYSTEMS
-setInterval(nextRevision, 10000);
-setInterval(generateQuiz, 15000);
+// AUTO
+setInterval(nextRevision,10000);
+setInterval(generateQuiz,15000);
 
 </script>
 
