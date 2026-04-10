@@ -1,87 +1,4 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Vocab Pro MAX+</title>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-
-<style>
-body{margin:0;font-family:Arial;transition:.3s;}
-.dark{background:#121212;color:white;}
-
-.container{max-width:500px;margin:20px auto;padding:20px;}
-
-.box{padding:10px;margin-top:10px;border-radius:10px;background:#eee;}
-.dark .box{background:#1e1e1e;}
-
-button{padding:10px;margin:5px 0;width:100%;border:none;border-radius:8px;cursor:pointer;}
-
-.progress{height:10px;background:#ccc;border-radius:5px;overflow:hidden;}
-.progress div{height:100%;background:#28a745;width:0%;}
-
-.hidden{display:none;}
-.active{background:#28a745;color:white;}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-<h1>📘 Vocab Pro MAX+</h1>
-
-<!-- LOGIN -->
-<div id="loginPage">
-<input id="email" placeholder="Email">
-<input id="password" placeholder="Password">
-<button onclick="signup()">Signup</button>
-<button onclick="login()">Login</button>
-</div>
-
-<!-- APP -->
-<div id="appPage" class="hidden">
-
-<button onclick="logout()">Logout</button>
-<button onclick="toggleDark()">🌙 Dark</button>
-
-<h3 id="user"></h3>
-
-<h4 id="streak">🔥 Streak: 0</h4>
-<h4 id="xp">⭐ XP: 0</h4>
-
-<div class="progress"><div id="progressBar"></div></div>
-
-<select id="mode" onchange="loadWords()">
-<option value="word">Word</option>
-<option value="idiom">Idiom</option>
-<option value="phrasal">Phrasal</option>
-</select>
-
-<input id="wordInput" placeholder="Enter">
-<select id="lang">
-<option value="hi">Hindi</option>
-<option value="fr">French</option>
-<option value="es">Spanish</option>
-</select>
-
-<button onclick="addWord()">Add</button>
-
-<div class="box" id="meaningBox"></div>
-
-<div class="box" id="output"></div>
-<button id="revBtn" onclick="toggleRevision()">▶ Start Revision</button>
-
-<div class="box" id="quizBox"></div>
-<button id="quizBtn" onclick="toggleQuiz()">▶ Start Quiz</button>
-
-<button onclick="exportData()">⬇ Backup</button>
-<input type="file" onchange="importData(event)">
-
-</div>
-</div>
-
+<!-- ONLY JS PART UPDATED (baaki UI same rakha hai) -->
 <script>
 
 // FIREBASE
@@ -102,6 +19,10 @@ let currentWord=null;
 let currentAnswer="";
 let revInt=null;
 let quizRunning=false;
+
+// 🔥 NEW (cache system)
+let cacheKey="vocab_cache";
+let cacheTimeKey="vocab_cache_time";
 
 // LOCAL
 let xp=Number(localStorage.getItem("xp"))||0;
@@ -126,87 +47,22 @@ auth.onAuthStateChanged(u=>{
  }
 });
 
-function signup(){
- auth.createUserWithEmailAndPassword(email.value,password.value)
- .catch(e=>alert(e.message));
-}
-
-function login(){
- auth.signInWithEmailAndPassword(email.value,password.value)
- .catch(e=>alert(e.message));
-}
-
-function logout(){auth.signOut();}
-
-// STREAK
-function updateStreak(){
- let today=new Date().toDateString();
-
- if(lastDate!==today){
-  if(lastDate===new Date(Date.now()-86400000).toDateString()){
-    streak++;
-  }else{
-    streak=1;
-  }
-  lastDate=today;
- }
-
- localStorage.setItem("streak",streak);
- localStorage.setItem("lastDate",lastDate);
-
- document.getElementById("streak").innerText="🔥 Streak: "+streak;
-}
-
-// XP
-function updateXP(){
- if(xp<0) xp=0;
- localStorage.setItem("xp",xp);
- document.getElementById("xp").innerText="⭐ XP: "+xp;
-}
-
-// ADD
-async function addWord(){
-
- let word=wordInput.value.trim().toLowerCase();
- if(!word) return alert("Enter word");
-
- let mode=document.getElementById("mode").value;
-
- // duplicate check
- let existing=await db.collection("users").doc(userId)
- .collection("words").where("word","==",word).get();
-
- if(!existing.empty) return alert("Already exists");
-
- let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
- let data=await res.json();
-
- let meaning=data[0]?data[0].meanings[0].definitions[0].definition:"No meaning";
-
- let lang=document.getElementById("lang").value;
- let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
- let td=await t.json();
- let trans=td.responseData.translatedText;
-
- await db.collection("users").doc(userId).collection("words").add({
-  word,meaning,trans,mode,level:0
- });
-
- wordInput.value="";
- wordInput.focus();
-
- meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
-
- loadWords();
-
- if(!revInt) toggleRevision();
- if(!quizRunning) toggleQuiz();
-}
-
-// LOAD
+// 🔥 LOAD WITH CACHE
 async function loadWords(){
 
  let mode=document.getElementById("mode").value;
+
+ let lastFetch=localStorage.getItem(cacheTimeKey);
+
+ // 5 min cache
+ if(lastFetch && (Date.now()-lastFetch)<300000){
+   let cached=JSON.parse(localStorage.getItem(cacheKey))||[];
+   allWords=cached.filter(w=>w.mode===mode);
+   showRevision();
+   generateQuiz();
+   updateProgress();
+   return;
+ }
 
  let snap=await db.collection("users").doc(userId)
   .collection("words").where("mode","==",mode).get();
@@ -214,41 +70,38 @@ async function loadWords(){
  allWords=[];
  snap.forEach(d=>allWords.push({...d.data(),id:d.id}));
 
+ // 🔥 save cache
+ localStorage.setItem(cacheKey,JSON.stringify(allWords));
+ localStorage.setItem(cacheTimeKey,Date.now());
+
  updateProgress();
  showRevision();
  generateQuiz();
 }
 
-// PROGRESS
-function updateProgress(){
- let strong=allWords.filter(w=>w.level>=3).length;
- let percent=allWords.length?(strong/allWords.length)*100:0;
- document.getElementById("progressBar").style.width=percent+"%";
-}
-
-// REVISION
+// 🔥 SMART REVISION (weak first)
 function showRevision(){
+
  if(!allWords.length){
   output.innerText="No words added yet";
   return;
  }
 
+ let sorted=[...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
+
  let t="";
- for(let i=0;i<Math.min(4,allWords.length);i++){
-  let w=allWords[(revIndex+i)%allWords.length];
+ for(let i=0;i<Math.min(4,sorted.length);i++){
+  let w=sorted[(revIndex+i)%sorted.length];
   t+=`${cap(w.word)}\n${w.meaning}\n${w.trans}\n\n`;
  }
 
  output.innerText=t;
 }
 
-function nextRevision(){
- revIndex=(revIndex+4)%allWords.length;
- showRevision();
-}
-
-// QUIZ
+// 🔥 SMART QUIZ
 function generateQuiz(){
+
+ if(!quizRunning) return;
 
  if(allWords.length<4){
   quizBox.innerText="Add at least 4 items";
@@ -278,7 +131,7 @@ function generateQuiz(){
  quizBox.innerHTML=html;
 }
 
-// CHECK
+// 🔥 LOCK SYSTEM (no auto next)
 async function checkAnswer(ans){
 
  let lvl=currentWord.level||0;
@@ -299,10 +152,11 @@ async function checkAnswer(ans){
   .collection("words").doc(currentWord.id)
   .update({level:lvl});
 
+ // 🔥 NEXT ONLY AFTER ANSWER
  loadWords();
 }
 
-// PLAY BUTTONS
+// REVISION CONTROL
 function toggleRevision(){
  let btn=document.getElementById("revBtn");
 
@@ -316,6 +170,12 @@ function toggleRevision(){
  }
 }
 
+function nextRevision(){
+ revIndex=(revIndex+4)%allWords.length;
+ showRevision();
+}
+
+// QUIZ CONTROL
 function toggleQuiz(){
  let btn=document.getElementById("quizBtn");
 
@@ -329,31 +189,8 @@ function toggleQuiz(){
  }
 }
 
-// BACKUP
-function exportData(){
- let data=JSON.stringify(localStorage);
- let blob=new Blob([data]);
- let a=document.createElement("a");
- a.href=URL.createObjectURL(blob);
- a.download="backup.json";
- a.click();
-}
-
-function importData(e){
- let f=e.target.files[0];
- let r=new FileReader();
- r.onload=()=>{
-  let d=JSON.parse(r.result);
-  for(let k in d) localStorage.setItem(k,d[k]);
-  location.reload();
- };
- r.readAsText(f);
-}
-
 // HELPERS
 function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
 function toggleDark(){document.body.classList.toggle("dark");}
 
 </script>
-</body>
-</html>
