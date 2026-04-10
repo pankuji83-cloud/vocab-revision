@@ -1,27 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Vocab Pro MAX+</title>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+<style>
+body{margin:0;font-family:Arial;transition:.3s;}
+.dark{background:#121212;color:white;}
+.container{max-width:500px;margin:20px auto;padding:20px;}
+.box{padding:10px;margin-top:10px;border-radius:10px;background:#eee;}
+.dark .box{background:#1e1e1e;}
+button{padding:10px;margin:5px 0;width:100%;border:none;border-radius:8px;cursor:pointer;}
+.progress{height:10px;background:#ccc;border-radius:5px;overflow:hidden;}
+.progress div{height:100%;background:#28a745;width:0%;}
+.hidden{display:none;}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>📘 Vocab Pro MAX+</h1>
+
+<div id="loginPage">
+<input id="email" placeholder="Email">
+<input id="password" placeholder="Password">
+<button onclick="signup()">Signup</button>
+<button onclick="login()">Login</button>
+</div>
+
+<div id="appPage" class="hidden">
+
+<button onclick="logout()">Logout</button>
+<button onclick="toggleDark()">🌙 Dark</button>
+
+<h3 id="user"></h3>
+
+<h4 id="streak">🔥 Streak: 0</h4>
+<h4 id="xp">⭐ XP: 0</h4>
+
+<div class="progress"><div id="progressBar"></div></div>
+
+<select id="mode" onchange="loadWords()">
+<option value="word">Word</option>
+<option value="idiom">Idiom</option>
+<option value="phrasal">Phrasal</option>
+</select>
+
+<input id="wordInput" placeholder="Enter">
+<select id="lang">
+<option value="hi">Hindi</option>
+<option value="fr">French</option>
+<option value="es">Spanish</option>
+</select>
+
+<button onclick="addWord()">Add</button>
+
+<div class="box" id="meaningBox"></div>
+
+<div class="box" id="output"></div>
+<button id="revBtn" onclick="toggleRevision()">▶ Start Revision</button>
+
+<div class="box" id="quizBox"></div>
+<button id="quizBtn" onclick="toggleQuiz()">▶ Start Quiz</button>
+
+<!-- 🔥 NEW BACKUP CONTROLS -->
+<button onclick="setBackupFrequency('daily')">📅 Daily Backup</button>
+<button onclick="setBackupFrequency('weekly')">📆 Weekly Backup</button>
+<button onclick="setBackupFrequency('monthly')">🗓 Monthly Backup</button>
+
+<button onclick="restoreLatestBackup()">🔄 Restore</button>
+<button onclick="showBackupHistory()">📊 History</button>
+
+</div>
+</div>
+
 <script>
 
-// Ensure DOM fully loaded before running app
-window.addEventListener("DOMContentLoaded", function(){
-
 // FIREBASE
-// SAFE FIREBASE INIT (prevents duplicate initialization crash)
-if (!firebase.apps.length) {
- firebase.initializeApp({
-  apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
-  authDomain:"vocab-revision-a9f9e.firebaseapp.com",
-  projectId:"vocab-revision-a9f9e"
- });
-}
+firebase.initializeApp({
+ apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
+ authDomain:"vocab-revision-a9f9e.firebaseapp.com",
+ projectId:"vocab-revision-a9f9e"
+});
 
 const auth=firebase.auth();
 const db=firebase.firestore();
-
-// SAFE DOM REFERENCES (prevents undefined element crashes)
-const loginPage = document.getElementById("loginPage");
-const appPage = document.getElementById("appPage");
-const email = document.getElementById("email");
-const password = document.getElementById("password");
-const wordInput = document.getElementById("wordInput");
 
 // STATE
 let userId="";
@@ -31,27 +99,20 @@ let currentWord=null;
 let currentAnswer="";
 let revInt=null;
 let quizRunning=false;
-let chart=null;
-let backupInterval=null; // FIX: prevent multiple intervals
 
-// AI MEMORY
-const BASE_INTERVAL = 1;
-const EASE = 2.5;
-
-// BACKUP
+// BACKUP STATE
 let backupFrequency = localStorage.getItem("backup_freq") || "daily";
-let lastBackupTime = Number(localStorage.getItem("last_backup")) || 0;
+let lastBackupTime = localStorage.getItem("last_backup") || 0;
 
 // LOCAL
 let xp=Number(localStorage.getItem("xp"))||0;
-let streakCount=Number(localStorage.getItem("streak"))||0;
+let streak=Number(localStorage.getItem("streak"))||0;
 let lastDate=localStorage.getItem("lastDate")||"";
 
 // AUTH
 auth.onAuthStateChanged(u=>{
  if(u){
   userId=u.uid;
-
   document.getElementById("user").innerText="Logged: "+u.email;
 
   loginPage.classList.add("hidden");
@@ -61,9 +122,8 @@ auth.onAuthStateChanged(u=>{
   updateXP();
   loadWords();
 
-  if(!backupInterval){
-   backupInterval=setInterval(autoBackup,60000);
-  }
+  // 🔥 AUTO BACKUP CHECK
+  setInterval(autoBackup,60000);
 
  }else{
   loginPage.classList.remove("hidden");
@@ -71,43 +131,36 @@ auth.onAuthStateChanged(u=>{
  }
 });
 
-// AUTH
-function signup(){auth.createUserWithEmailAndPassword(email.value,password.value);} 
-function login(){auth.signInWithEmailAndPassword(email.value,password.value);} 
+// AUTH FUNCTIONS
+function signup(){auth.createUserWithEmailAndPassword(email.value,password.value);}
+function login(){auth.signInWithEmailAndPassword(email.value,password.value);}
 function logout(){auth.signOut();}
 
 // STREAK
 function updateStreak(){
  let today=new Date().toDateString();
-
  if(lastDate!==today){
   if(lastDate===new Date(Date.now()-86400000).toDateString()){
-    streakCount++;
+    streak++;
   }else{
-    streakCount=1;
+    streak=1;
   }
   lastDate=today;
  }
-
- localStorage.setItem("streak",streakCount);
+ localStorage.setItem("streak",streak);
  localStorage.setItem("lastDate",lastDate);
-
- document.getElementById("streak").innerText="🔥 Streak: "+streakCount;
+ document.getElementById("streak").innerText="🔥 Streak: "+streak;
 }
 
 // XP
 function updateXP(){
- xp=Math.max(0,xp); // FIX safer
-
+ if(xp<0) xp=0;
  localStorage.setItem("xp",xp);
  document.getElementById("xp").innerText="⭐ XP: "+xp;
-
- updateGraph();
 }
 
 // ADD WORD
 async function addWord(){
-
  let word=wordInput.value.trim().toLowerCase();
  if(!word) return alert("Enter word");
 
@@ -118,59 +171,22 @@ async function addWord(){
 
  if(!existing.empty) return alert("Already exists");
 
- // CACHE dictionary
- let cached=localStorage.getItem("dict_"+word);
- let data;
+ let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+ let data=await res.json();
 
- if(cached){
-  data=JSON.parse(cached);
- }else{
-  let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-  data=await res.json();
-  localStorage.setItem("dict_"+word,JSON.stringify(data));
- }
-
- let meaning="No meaning";
-
- if(
-  data &&
-  data[0] &&
-  data[0].meanings &&
-  data[0].meanings[0]
- ){
-  meaning=
-   data[0]
-   .meanings[0]
-   .definitions[0]
-   .definition;
- }
+ let meaning=data[0]?data[0].meanings[0].definitions[0].definition:"No meaning";
 
  let lang=document.getElementById("lang").value;
  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
  let td=await t.json();
- let trans =
- td &&
- td.responseData &&
- td.responseData.translatedText
- ? td.responseData.translatedText
- : word;
-
- let now=Date.now();
+ let trans=td.responseData.translatedText;
 
  await db.collection("users").doc(userId).collection("words").add({
-  word,meaning,trans,mode,
-  level:0,
-  ease:EASE,
-  interval:BASE_INTERVAL,
-  nextReview:now
+  word,meaning,trans,mode,level:0
  });
 
  wordInput.value="";
-
- document.getElementById("meaningBox").innerText=
- `${cap(word)}\n${meaning}\n${trans}`;
-
- currentWord={word};
+ meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
 
  loadWords();
 
@@ -180,55 +196,35 @@ async function addWord(){
 
 // LOAD
 async function loadWords(){
-
  let mode=document.getElementById("mode").value;
 
  let snap=await db.collection("users").doc(userId)
-  .collection("words").where("mode","==",mode)
-  .limit(200) // PERFORMANCE SAFE
-  .get();
-
- let now=Date.now();
+  .collection("words").where("mode","==",mode).get();
 
  allWords=[];
-
- snap.forEach(d=>{
-  let w={...d.data(),id:d.id};
-  if(!w.nextReview || w.nextReview<=now){
-    allWords.push(w);
-  }
- });
+ snap.forEach(d=>allWords.push({...d.data(),id:d.id}));
 
  updateProgress();
  showRevision();
  generateQuiz();
- aiSuggestion();
 }
 
 // PROGRESS
 function updateProgress(){
  let strong=allWords.filter(w=>w.level>=3).length;
  let percent=allWords.length?(strong/allWords.length)*100:0;
-
  document.getElementById("progressBar").style.width=percent+"%";
 }
 
 // REVISION
 function showRevision(){
-
- if(!allWords.length){
-  document.getElementById("output").innerText="🎉 No due words!";
-  return;
- }
-
+ if(!allWords.length){output.innerText="No words";return;}
  let t="";
-
  for(let i=0;i<Math.min(4,allWords.length);i++){
   let w=allWords[(revIndex+i)%allWords.length];
   t+=`${cap(w.word)}\n${w.meaning}\n${w.trans}\n\n`;
  }
-
- document.getElementById("output").innerText=t;
+ output.innerText=t;
 }
 
 function nextRevision(){
@@ -238,38 +234,20 @@ function nextRevision(){
 
 // QUIZ
 function generateQuiz(){
-
  if(!quizRunning) return;
 
- if(allWords.length<1){
-  document.getElementById("quizBox").innerText="No due words";
+ if(allWords.length<4){
+  quizBox.innerText="Add at least 4 items";
   return;
  }
 
- // WEIGHTED RANDOM
- let pool=[];
-
- allWords.forEach(w=>{
-
-  let weight=4-(w.level||0);
-
-  if(weight<1)
-   weight=1;
-
-  for(let i=0;i<weight;i++){
-   pool.push(w);
-  }
-
- });
-
- currentWord=
- pool[Math.floor(Math.random()*pool.length)];
-
+ let pool=[...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
+ currentWord=pool[Math.floor(Math.random()*Math.min(5,pool.length))];
  currentAnswer=currentWord.meaning;
 
  let opts=[currentAnswer];
 
- while(opts.length<4 && allWords.length>1){
+ while(opts.length<4){
   let r=allWords[Math.floor(Math.random()*allWords.length)].meaning;
   if(!opts.includes(r)) opts.push(r);
  }
@@ -279,48 +257,29 @@ function generateQuiz(){
  let html=`<h3>${cap(currentWord.word)}</h3>`;
 
  opts.forEach(o=>{
-  html+=`<button onclick="checkAnswer(this.dataset.ans)" data-ans="${encodeURIComponent(o)}">${o}</button>`;
+  html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
  });
 
- document.getElementById("quizBox").innerHTML=html;
+ quizBox.innerHTML=html;
 }
 
 // CHECK
 async function checkAnswer(ans){
-
- ans = decodeURIComponent(ans);
-
- let now=Date.now();
-
- let ease=currentWord.ease || EASE;
- let interval=currentWord.interval || BASE_INTERVAL;
- let level=currentWord.level || 0;
+ let lvl=currentWord.level||0;
 
  if(ans===currentAnswer){
   xp+=10;
-  ease+=0.1;
-  interval=Math.round(interval*ease);
-  level++;
+  lvl=Math.min(lvl+1,5);
  }else{
   xp-=5;
-  ease-=0.2;
-  interval=1;
-  level--;
+  lvl=Math.max(lvl-1,0);
  }
-
- if(level<0) level=0;
-
- if(ease<1.3) ease=1.3;
-
- if(interval>365) interval=365; // LIMIT
-
- let nextReview=now+(interval*86400000);
 
  updateXP();
 
  await db.collection("users").doc(userId)
   .collection("words").doc(currentWord.id)
-  .update({ease,interval,nextReview,level});
+  .update({level:lvl});
 
  loadWords();
 }
@@ -328,7 +287,6 @@ async function checkAnswer(ans){
 // PLAY
 function toggleRevision(){
  let btn=document.getElementById("revBtn");
-
  if(revInt){
   clearInterval(revInt);
   revInt=null;
@@ -352,107 +310,81 @@ function toggleQuiz(){
  }
 }
 
-// AI SUGGEST
-function aiSuggestion(){
-
- let el=document.getElementById("aiSuggest");
- if(!el) return;
-
- if(!allWords.length){
-  el.innerText="No data";
-  return;
- }
-
- let weak=allWords.filter(w=>w.level<=1);
-
- if(weak.length){
-  el.innerText="🤖 Focus: "+weak.slice(0,3).map(w=>cap(w.word)).join(", ");
- }else{
-  el.innerText="🔥 All strong!";
- }
-}
-
-// GRAPH
-function updateGraph(){
-
- let ctx=document.getElementById("xpChart");
- if(!ctx || typeof Chart==="undefined") return;
-
- let history=JSON.parse(localStorage.getItem("xp_history")||"[]");
-
- if(history[history.length-1] !== xp){
- history.push(xp);
-}
- if(history.length>10) history.shift();
-
- localStorage.setItem("xp_history",JSON.stringify(history));
-
- if(chart) chart.destroy();
-
- chart=new Chart(ctx,{
-  type:"line",
-  data:{
-    labels:history.map((_,i)=>i+1),
-    datasets:[{
-      label:"XP",
-      data:history
-    }]
-  }
- });
-}
-
-// BACKUP
+// 🔥 BACKUP SYSTEM
 function setBackupFrequency(freq){
  backupFrequency=freq;
  localStorage.setItem("backup_freq",freq);
  alert("Backup set: "+freq);
 }
 
-async function autoBackup(){
-
+function shouldBackup(){
  let now=Date.now();
  let diff=now-lastBackupTime;
 
- if(
- (backupFrequency==="daily" && diff>86400000) ||
- (backupFrequency==="weekly" && diff>604800000) ||
- (backupFrequency==="monthly" && diff>2592000000)
- ){
+ if(backupFrequency==="daily" && diff>86400000) return true;
+ if(backupFrequency==="weekly" && diff>604800000) return true;
+ if(backupFrequency==="monthly" && diff>2592000000) return true;
 
-  try{
+ return false;
+}
 
-   let snap=await db.collection("users")
-    .doc(userId)
-    .collection("words")
-    .get();
+async function autoBackup(){
+ if(!shouldBackup()) return;
 
-   let data=[];
-   snap.forEach(d=>data.push(d.data()));
+ let snap=await db.collection("users").doc(userId).collection("words").get();
 
-   await db.collection("users")
-    .doc(userId)
-    .collection("backups")
-    .add({data,date:now});
+ let data=[];
+ snap.forEach(d=>data.push(d.data()));
 
-   lastBackupTime=now;
+ await db.collection("users").doc(userId)
+  .collection("backups").add({
+    data:data,
+    date:Date.now()
+  });
 
-   localStorage.setItem("last_backup",now);
+ lastBackupTime=Date.now();
+ localStorage.setItem("last_backup",lastBackupTime);
 
-   console.log("Backup success");
+ console.log("Backup done");
+}
 
-  }catch(e){
+// RESTORE
+async function restoreLatestBackup(){
+ let snap=await db.collection("users").doc(userId)
+  .collection("backups").orderBy("date","desc").limit(1).get();
 
-   console.error("Backup failed",e);
+ if(snap.empty) return alert("No backup");
 
-  }
+ let data=snap.docs[0].data().data;
+
+ let old=await db.collection("users").doc(userId).collection("words").get();
+ old.forEach(doc=>doc.ref.delete());
+
+ for(let item of data){
+  await db.collection("users").doc(userId).collection("words").add(item);
  }
+
+ alert("Restored");
+ loadWords();
+}
+
+// HISTORY
+async function showBackupHistory(){
+ let snap=await db.collection("users").doc(userId)
+  .collection("backups").orderBy("date","desc").get();
+
+ let t="Backup History:\n\n";
+ snap.forEach(d=>{
+  t+=new Date(d.data().date).toLocaleString()+"\n";
+ });
+
+ alert(t);
 }
 
 // HELPERS
-function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);} 
+function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
 function toggleDark(){document.body.classList.toggle("dark");}
 
-
-});
-
 </script>
+</body>
+</html>
