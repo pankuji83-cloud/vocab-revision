@@ -1,194 +1,200 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Vocab Revision Pro</title>
+<title>Vocab Pro MAX</title>
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: linear-gradient(135deg, #4facfe, #00f2fe);
-      color: #333;
-    }
+<style>
+body{
+  margin:0;
+  font-family:Arial;
+  transition:0.3s;
+}
 
-    .container {
-      max-width: 500px;
-      margin: 30px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
+.dark{
+  background:#121212;
+  color:white;
+}
 
-    h1 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+.container{
+  max-width:500px;
+  margin:20px auto;
+  padding:20px;
+}
 
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-    }
+.box{
+  padding:10px;
+  margin-top:10px;
+  border-radius:10px;
+  background:#eee;
+}
 
-    button {
-      width: 100%;
-      padding: 10px;
-      margin: 5px 0;
-      border-radius: 8px;
-      border: none;
-      background: #4facfe;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.3s;
-    }
+.dark .box{
+  background:#1e1e1e;
+}
 
-    button:hover {
-      background: #007bff;
-    }
+button{
+  padding:10px;
+  margin:5px 0;
+  width:100%;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+}
 
-    .box {
-      background: #f4f6f8;
-      padding: 10px;
-      border-radius: 10px;
-      margin-top: 15px;
-      white-space: pre-line;
-    }
+.hidden{
+  display:none;
+}
+</style>
 
-    .quiz button {
-      background: #28a745;
-    }
-
-    .quiz button:hover {
-      background: #1e7e34;
-    }
-
-    .level {
-      font-size: 12px;
-      color: gray;
-    }
-  </style>
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>📘 Vocab Revision</h1>
+<h1>📘 Vocab Pro</h1>
 
-<!-- LOGIN -->
+<!-- LOGIN PAGE -->
+<div id="loginPage">
 <input id="email" placeholder="Email">
 <input id="password" placeholder="Password">
-
 <button onclick="signup()">Signup</button>
 <button onclick="login()">Login</button>
+</div>
+
+<!-- APP PAGE -->
+<div id="appPage" class="hidden">
+
 <button onclick="logout()">Logout</button>
+<button onclick="toggleDark()">🌙 Dark Mode</button>
 
-<h3 id="user">Not logged in</h3>
+<h3 id="user"></h3>
 
-<!-- ADD WORD -->
+<!-- Preference -->
+<select id="mode">
+<option value="word">Word</option>
+<option value="idiom">Idiom</option>
+<option value="phrasal">Phrasal Verb</option>
+</select>
+
+<!-- Add -->
 <input id="wordInput" placeholder="Enter word">
-<button onclick="addWord()">Add Word</button>
+<select id="lang">
+<option value="hi">Hindi</option>
+<option value="fr">French</option>
+<option value="es">Spanish</option>
+</select>
 
-<!-- OUTPUT -->
-<div class="box" id="output">No words yet</div>
+<button onclick="addWord()">Add</button>
 
-<!-- QUIZ -->
-<div class="box quiz" id="quizBox"></div>
+<!-- Meaning -->
+<div class="box" id="meaningBox"></div>
+
+<!-- Revision -->
+<div class="box" id="output"></div>
+<button onclick="toggleRevision()">⏯ Revision</button>
+
+<!-- Quiz -->
+<div class="box" id="quizBox"></div>
+<button onclick="toggleQuiz()">⏯ Quiz</button>
+
+</div>
 
 </div>
 
 <script>
 
 // CONFIG
-const firebaseConfig = {
-  apiKey: "AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
-  authDomain: "vocab-revision-a9f9e.firebaseapp.com",
-  projectId: "vocab-revision-a9f9e"
-};
-
-firebase.initializeApp(firebaseConfig);
+firebase.initializeApp({
+  apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
+  authDomain:"vocab-revision-a9f9e.firebaseapp.com",
+  projectId:"vocab-revision-a9f9e"
+});
 
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-let userId = "";
-let allWords = [];
-let revIndex = 0;
-let currentWord = null;
-let currentAnswer = "";
+let userId="";
+let allWords=[];
+let revIndex=0;
+let currentWord=null;
+let currentAnswer="";
 
-// AUTH
-function signup() {
-  auth.createUserWithEmailAndPassword(email.value, password.value)
-    .then(() => alert("Signup success"))
-    .catch(e => alert(e.message));
-}
+let revInterval=null;
+let quizInterval=null;
 
-function login() {
-  auth.signInWithEmailAndPassword(email.value, password.value)
-    .then(() => alert("Login success"))
-    .catch(e => alert(e.message));
-}
-
-function logout() {
-  auth.signOut();
-}
-
-auth.onAuthStateChanged(user => {
-  if (user) {
-    userId = user.uid;
-    user.innerText = "Logged in: " + user.email;
+// AUTH FIX
+auth.onAuthStateChanged(u=>{
+  if(u){
+    userId=u.uid;
+    user.innerText="Logged: "+u.email;
+    loginPage.classList.add("hidden");
+    appPage.classList.remove("hidden");
     loadWords();
-  } else {
-    userId = "";
-    document.getElementById("user").innerText = "Not logged in";
+  }else{
+    loginPage.classList.remove("hidden");
+    appPage.classList.add("hidden");
   }
 });
 
+function signup(){
+  auth.createUserWithEmailAndPassword(email.value,password.value);
+}
+
+function login(){
+  auth.signInWithEmailAndPassword(email.value,password.value);
+}
+
+function logout(){
+  auth.signOut();
+}
+
 // ADD WORD
-async function addWord() {
+async function addWord(){
 
-  if (!userId) return alert("Login first!");
+  let word=wordInput.value.trim().toLowerCase();
+  if(!word) return alert("Enter word");
 
-  let word = wordInput.value.trim().toLowerCase();
-  if (!word) return alert("Enter word");
+  let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+  let data=await res.json();
 
-  let res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-  let data = await res.json();
+  if(!data[0]) return alert("Invalid");
 
-  if (!data[0]) return alert("Invalid word");
+  let meaning=data[0].meanings[0].definitions[0].definition;
+  let example=data[0].meanings[0].definitions[0].example||"";
 
-  let meaning = data[0].meanings[0].definitions[0].definition;
-  let example = data[0].meanings[0].definitions[0].example || "No example";
-
-  let trans = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|hi`);
-  let tdata = await trans.json();
-  let hindi = tdata.responseData.translatedText;
+  let lang=langSelect();
+  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
+  let td=await t.json();
+  let trans=td.responseData.translatedText;
 
   await db.collection("users").doc(userId).collection("words").add({
-    word, meaning, example, hindi, level: 0
+    word,meaning,example,trans,level:0
   });
+
+  wordInput.value=""; // FIX 1
+
+  meaningBox.innerText=`${cap(word)}
+${meaning}
+${trans}`;
+
+  speak(word);
 
   loadWords();
 }
 
 // LOAD
-async function loadWords() {
+async function loadWords(){
 
-  let snap = await db.collection("users").doc(userId).collection("words").get();
+  let snap=await db.collection("users").doc(userId).collection("words").get();
 
-  allWords = [];
-  snap.forEach(doc => {
-    allWords.push({ ...doc.data(), id: doc.id });
+  allWords=[];
+  snap.forEach(d=>{
+    allWords.push({...d.data(),id:d.id});
   });
 
   allWords.sort((a,b)=>(a.level||0)-(b.level||0)||a.word.localeCompare(b.word));
@@ -197,89 +203,116 @@ async function loadWords() {
   generateQuiz();
 }
 
-// REVISION UI
-function showRevision() {
+// REVISION
+function showRevision(){
 
-  if (!allWords.length) {
-    output.innerText = "No words yet";
-    return;
-  }
+  if(!allWords.length) return output.innerText="No words";
 
-  let text = "";
+  let text="";
 
-  for (let i=0;i<Math.min(4,allWords.length);i++) {
-    let w = allWords[(revIndex+i)%allWords.length];
+  for(let i=0;i<4;i++){
+    let w=allWords[(revIndex+i)%allWords.length];
 
-    text += `${w.word} (Level ${w.level})
+    text+=`${cap(w.word)}
 ${w.meaning}
-${w.hindi}
-${w.example}
+${w.trans}
 
 ------\n`;
   }
 
-  output.innerText = text;
+  output.innerText=text;
 }
 
-function nextRevision() {
-  revIndex = (revIndex + 4) % allWords.length;
+function nextRevision(){
+  revIndex=(revIndex+4)%allWords.length;
   showRevision();
 }
 
 // QUIZ
-function generateQuiz() {
+function generateQuiz(){
 
-  if (allWords.length < 4) {
-    quizBox.innerText = "Add 4 words";
+  if(allWords.length<4){
+    quizBox.innerText="Add 4 words";
     return;
   }
 
-  let pool = [...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
-  currentWord = pool[Math.floor(Math.random()*Math.min(5,pool.length))];
+  let pool=[...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
+  currentWord=pool[Math.floor(Math.random()*5)];
 
-  currentAnswer = currentWord.meaning;
+  currentAnswer=currentWord.meaning;
 
-  let options = [currentAnswer];
+  let opts=[currentAnswer];
 
-  while(options.length<4){
-    let r = allWords[Math.floor(Math.random()*allWords.length)].meaning;
-    if(!options.includes(r)) options.push(r);
+  while(opts.length<4){
+    let r=allWords[Math.floor(Math.random()*allWords.length)].meaning;
+    if(!opts.includes(r)) opts.push(r);
   }
 
-  options.sort(()=>Math.random()-0.5);
+  opts.sort(()=>Math.random()-0.5);
 
-  let html = `<h3>${currentWord.word}</h3>`;
+  let html=`<h3>${cap(currentWord.word)}</h3>`;
 
-  options.forEach(opt=>{
-    html+=`<button onclick="checkAnswer('${opt.replace(/'/g,"")}')">${opt}</button>`;
+  opts.forEach(o=>{
+    html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
   });
 
-  quizBox.innerHTML = html;
+  quizBox.innerHTML=html;
 }
 
 // CHECK
-async function checkAnswer(ans) {
+async function checkAnswer(ans){
 
-  let newLevel = currentWord.level || 0;
+  let lvl=currentWord.level||0;
 
   if(ans===currentAnswer){
-    alert("✅");
-    newLevel = Math.min(newLevel+1,4);
-  } else {
-    alert("❌");
-    newLevel = Math.max(newLevel-1,0);
+    lvl=Math.min(lvl+1,4);
+  }else{
+    lvl=Math.max(lvl-1,0);
   }
 
   await db.collection("users").doc(userId)
     .collection("words").doc(currentWord.id)
-    .update({level:newLevel});
+    .update({level:lvl});
 
   loadWords();
 }
 
-// AUTO
-setInterval(nextRevision,10000);
-setInterval(generateQuiz,15000);
+// PLAY PAUSE
+function toggleRevision(){
+  if(revInterval){
+    clearInterval(revInterval);
+    revInterval=null;
+  }else{
+    revInterval=setInterval(nextRevision,10000);
+  }
+}
+
+function toggleQuiz(){
+  if(quizInterval){
+    clearInterval(quizInterval);
+    quizInterval=null;
+  }else{
+    quizInterval=setInterval(generateQuiz,15000);
+  }
+}
+
+// HELPERS
+function cap(w){
+  return w.charAt(0).toUpperCase()+w.slice(1);
+}
+
+function speak(word){
+  let u=new SpeechSynthesisUtterance(word);
+  speechSynthesis.speak(u);
+}
+
+function toggleDark(){
+  document.body.classList.toggle("dark");
+}
+
+function langSelect(){
+  return document.getElementById("lang").value;
+}
 
 </script>
 
