@@ -1,8 +1,3 @@
-let weakWords = [];
-let currentWord = null;
-let currentAnswer = "";
-
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -28,6 +23,8 @@ let currentAnswer = "";
 <button onclick="addWord()">Add Word</button>
 
 <h3 id="output"></h3>
+
+<!-- QUIZ -->
 <div id="quizBox"></div>
 
 <!-- FIREBASE -->
@@ -51,9 +48,12 @@ const db = firebase.firestore();
 
 let userId = "";
 
-// 🔥 Revision system variables
+// 🔥 SYSTEM VARIABLES
 let allWords = [];
 let revIndex = 0;
+let weakWords = [];
+let currentWord = null;
+let currentAnswer = "";
 
 // SIGNUP
 function signup() {
@@ -104,7 +104,7 @@ async function addWord() {
 
   if (!word) return alert("Enter word!");
 
-  // 🔥 Duplicate check
+  // duplicate check
   let existing = await db.collection("users")
     .doc(userId)
     .collection("words")
@@ -128,7 +128,6 @@ async function addWord() {
     let meaning = data[0].meanings[0].definitions[0].definition;
     let example = data[0].meanings[0].definitions[0].example || "No example";
 
-    // 🌍 Hindi translation
     let transRes = await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|hi`);
     let transData = await transRes.json();
     let hindi = transData.responseData.translatedText;
@@ -144,7 +143,6 @@ async function addWord() {
 
   } catch (e) {
     alert("Error!");
-    console.log(e);
   }
 }
 
@@ -162,13 +160,13 @@ async function loadWords() {
     allWords.push(doc.data());
   });
 
-  // 🔥 Alphabetical sort
   allWords.sort((a, b) => a.word.localeCompare(b.word));
 
   showRevision();
+  generateQuiz(); // 🔥 start quiz
 }
 
-// 🔥 SHOW REVISION (MAIN SYSTEM)
+// SHOW REVISION
 function showRevision() {
 
   if (allWords.length === 0) {
@@ -181,7 +179,6 @@ function showRevision() {
   let count = Math.min(4, allWords.length);
 
   for (let i = 0; i < count; i++) {
-
     let w = allWords[(revIndex + i) % allWords.length];
 
     text += `${w.word}
@@ -195,7 +192,7 @@ Example: ${w.example}
   document.getElementById("output").innerText = text;
 }
 
-// 🔥 NEXT REVISION
+// NEXT REVISION
 function nextRevision() {
   if (allWords.length === 0) return;
 
@@ -203,22 +200,16 @@ function nextRevision() {
   showRevision();
 }
 
-// 🔥 AUTO ROTATE
-setInterval(nextRevision, 10000);
-
-</script>
-
-</body>
-</html>
-
-
+// QUIZ SYSTEM
 function generateQuiz() {
 
-  if (allWords.length < 4) return;
+  if (allWords.length < 4) {
+    document.getElementById("quizBox").innerText = "Add at least 4 words for quiz";
+    return;
+  }
 
   let pool = [...allWords];
 
-  // 🔥 Weak words ko priority do
   if (weakWords.length > 0 && Math.random() < 0.7) {
     let weak = weakWords[Math.floor(Math.random() * weakWords.length)];
     currentWord = allWords.find(w => w.word === weak);
@@ -232,9 +223,7 @@ function generateQuiz() {
 
   while (options.length < 4) {
     let random = pool[Math.floor(Math.random() * pool.length)].meaning;
-    if (!options.includes(random)) {
-      options.push(random);
-    }
+    if (!options.includes(random)) options.push(random);
   }
 
   options.sort(() => Math.random() - 0.5);
@@ -248,19 +237,14 @@ function generateQuiz() {
   document.getElementById("quizBox").innerHTML = html;
 }
 
-
+// CHECK ANSWER
 function checkAnswer(ans) {
 
   if (ans === currentAnswer) {
     alert("✅ Correct!");
-
-    // weak se hatao
     weakWords = weakWords.filter(w => w !== currentWord.word);
-
   } else {
     alert("❌ Wrong!");
-
-    // weak me add karo
     if (!weakWords.includes(currentWord.word)) {
       weakWords.push(currentWord.word);
     }
@@ -269,5 +253,11 @@ function checkAnswer(ans) {
   generateQuiz();
 }
 
-
+// AUTO SYSTEMS
+setInterval(nextRevision, 10000);
 setInterval(generateQuiz, 15000);
+
+</script>
+
+</body>
+</html>
