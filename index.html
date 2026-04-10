@@ -1,64 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Vocab Pro MAX</title>
+<title>Vocab Pro MAX+</title>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <style>
-body{
-  margin:0;
-  font-family:Arial;
-  transition:0.3s;
-}
+body{margin:0;font-family:Arial;transition:.3s;}
+.dark{background:#121212;color:white;}
 
-.dark{
-  background:#121212;
-  color:white;
-}
+.container{max-width:500px;margin:20px auto;padding:20px;}
 
-.container{
-  max-width:500px;
-  margin:20px auto;
-  padding:20px;
-}
+.box{padding:10px;margin-top:10px;border-radius:10px;background:#eee;}
+.dark .box{background:#1e1e1e;}
 
-.box{
-  padding:10px;
-  margin-top:10px;
-  border-radius:10px;
-  background:#eee;
-}
+button{padding:10px;margin:5px 0;width:100%;border:none;border-radius:8px;cursor:pointer;}
 
-.dark .box{
-  background:#1e1e1e;
-}
+.progress{height:10px;background:#ccc;border-radius:5px;overflow:hidden;}
+.progress div{height:100%;background:#28a745;width:0%;}
 
-button{
-  padding:10px;
-  margin:5px 0;
-  width:100%;
-  border:none;
-  border-radius:8px;
-  cursor:pointer;
-}
-
-.hidden{
-  display:none;
-}
+.hidden{display:none;}
+.active{background:#28a745;color:white;}
 </style>
-
 </head>
 
 <body>
 
 <div class="container">
 
-<h1>📘 Vocab Pro</h1>
+<h1>📘 Vocab Pro MAX+</h1>
 
-<!-- LOGIN PAGE -->
+<!-- LOGIN -->
 <div id="loginPage">
 <input id="email" placeholder="Email">
 <input id="password" placeholder="Password">
@@ -66,23 +40,26 @@ button{
 <button onclick="login()">Login</button>
 </div>
 
-<!-- APP PAGE -->
+<!-- APP -->
 <div id="appPage" class="hidden">
 
 <button onclick="logout()">Logout</button>
-<button onclick="toggleDark()">🌙 Dark Mode</button>
+<button onclick="toggleDark()">🌙 Dark</button>
 
 <h3 id="user"></h3>
 
-<!-- Preference -->
-<select id="mode">
+<h4 id="streak">🔥 Streak: 0</h4>
+<h4 id="xp">⭐ XP: 0</h4>
+
+<div class="progress"><div id="progressBar"></div></div>
+
+<select id="mode" onchange="loadWords()">
 <option value="word">Word</option>
 <option value="idiom">Idiom</option>
-<option value="phrasal">Phrasal Verb</option>
+<option value="phrasal">Phrasal</option>
 </select>
 
-<!-- Add -->
-<input id="wordInput" placeholder="Enter word">
+<input id="wordInput" placeholder="Enter">
 <select id="lang">
 <option value="hi">Hindi</option>
 <option value="fr">French</option>
@@ -91,230 +68,292 @@ button{
 
 <button onclick="addWord()">Add</button>
 
-<!-- Meaning -->
 <div class="box" id="meaningBox"></div>
 
-<!-- Revision -->
 <div class="box" id="output"></div>
-<button onclick="toggleRevision()">⏯ Revision</button>
+<button id="revBtn" onclick="toggleRevision()">▶ Start Revision</button>
 
-<!-- Quiz -->
 <div class="box" id="quizBox"></div>
-<button onclick="toggleQuiz()">⏯ Quiz</button>
+<button id="quizBtn" onclick="toggleQuiz()">▶ Start Quiz</button>
+
+<button onclick="exportData()">⬇ Backup</button>
+<input type="file" onchange="importData(event)">
 
 </div>
-
 </div>
 
 <script>
 
-// CONFIG
+// FIREBASE
 firebase.initializeApp({
-  apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
-  authDomain:"vocab-revision-a9f9e.firebaseapp.com",
-  projectId:"vocab-revision-a9f9e"
+ apiKey:"AIzaSyAdcQ1cKoy-bvyXpfLI89p7AjJNztJ6bKs",
+ authDomain:"vocab-revision-a9f9e.firebaseapp.com",
+ projectId:"vocab-revision-a9f9e"
 });
 
-const auth = firebase.auth();
-const db = firebase.firestore();
+const auth=firebase.auth();
+const db=firebase.firestore();
 
+// STATE
 let userId="";
 let allWords=[];
 let revIndex=0;
 let currentWord=null;
 let currentAnswer="";
+let revInt=null;
+let quizRunning=false;
 
-let revInterval=null;
-let quizInterval=null;
+// LOCAL
+let xp=Number(localStorage.getItem("xp"))||0;
+let streak=Number(localStorage.getItem("streak"))||0;
+let lastDate=localStorage.getItem("lastDate")||"";
 
-// AUTH FIX
+// AUTH
 auth.onAuthStateChanged(u=>{
-  if(u){
-    userId=u.uid;
-    user.innerText="Logged: "+u.email;
-    loginPage.classList.add("hidden");
-    appPage.classList.remove("hidden");
-    loadWords();
-  }else{
-    loginPage.classList.remove("hidden");
-    appPage.classList.add("hidden");
-  }
+ if(u){
+  userId=u.uid;
+  document.getElementById("user").innerText="Logged: "+u.email;
+
+  loginPage.classList.add("hidden");
+  appPage.classList.remove("hidden");
+
+  updateStreak();
+  updateXP();
+  loadWords();
+ }else{
+  loginPage.classList.remove("hidden");
+  appPage.classList.add("hidden");
+ }
 });
 
 function signup(){
-  auth.createUserWithEmailAndPassword(email.value,password.value);
+ auth.createUserWithEmailAndPassword(email.value,password.value)
+ .catch(e=>alert(e.message));
 }
 
 function login(){
-  auth.signInWithEmailAndPassword(email.value,password.value);
+ auth.signInWithEmailAndPassword(email.value,password.value)
+ .catch(e=>alert(e.message));
 }
 
-function logout(){
-  auth.signOut();
+function logout(){auth.signOut();}
+
+// STREAK
+function updateStreak(){
+ let today=new Date().toDateString();
+
+ if(lastDate!==today){
+  if(lastDate===new Date(Date.now()-86400000).toDateString()){
+    streak++;
+  }else{
+    streak=1;
+  }
+  lastDate=today;
+ }
+
+ localStorage.setItem("streak",streak);
+ localStorage.setItem("lastDate",lastDate);
+
+ document.getElementById("streak").innerText="🔥 Streak: "+streak;
 }
 
-// ADD WORD
+// XP
+function updateXP(){
+ if(xp<0) xp=0;
+ localStorage.setItem("xp",xp);
+ document.getElementById("xp").innerText="⭐ XP: "+xp;
+}
+
+// ADD
 async function addWord(){
 
-  let word=wordInput.value.trim().toLowerCase();
-  if(!word) return alert("Enter word");
+ let word=wordInput.value.trim().toLowerCase();
+ if(!word) return alert("Enter word");
 
-  let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-  let data=await res.json();
+ let mode=document.getElementById("mode").value;
 
-  if(!data[0]) return alert("Invalid");
+ // duplicate check
+ let existing=await db.collection("users").doc(userId)
+ .collection("words").where("word","==",word).get();
 
-  let meaning=data[0].meanings[0].definitions[0].definition;
-  let example=data[0].meanings[0].definitions[0].example||"";
+ if(!existing.empty) return alert("Already exists");
 
-  let lang=langSelect();
-  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
-  let td=await t.json();
-  let trans=td.responseData.translatedText;
+ let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+ let data=await res.json();
 
-  await db.collection("users").doc(userId).collection("words").add({
-    word,meaning,example,trans,level:0
-  });
+ let meaning=data[0]?data[0].meanings[0].definitions[0].definition:"No meaning";
 
-  wordInput.value=""; // FIX 1
+ let lang=document.getElementById("lang").value;
+ let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
+ let td=await t.json();
+ let trans=td.responseData.translatedText;
 
-  meaningBox.innerText=`${cap(word)}
-${meaning}
-${trans}`;
+ await db.collection("users").doc(userId).collection("words").add({
+  word,meaning,trans,mode,level:0
+ });
 
-  speak(word);
+ wordInput.value="";
+ wordInput.focus();
 
-  loadWords();
+ meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
+
+ loadWords();
+
+ if(!revInt) toggleRevision();
+ if(!quizRunning) toggleQuiz();
 }
 
 // LOAD
 async function loadWords(){
 
-  let snap=await db.collection("users").doc(userId).collection("words").get();
+ let mode=document.getElementById("mode").value;
 
-  allWords=[];
-  snap.forEach(d=>{
-    allWords.push({...d.data(),id:d.id});
-  });
+ let snap=await db.collection("users").doc(userId)
+  .collection("words").where("mode","==",mode).get();
 
-  allWords.sort((a,b)=>(a.level||0)-(b.level||0)||a.word.localeCompare(b.word));
+ allWords=[];
+ snap.forEach(d=>allWords.push({...d.data(),id:d.id}));
 
-  showRevision();
-  generateQuiz();
+ updateProgress();
+ showRevision();
+ generateQuiz();
+}
+
+// PROGRESS
+function updateProgress(){
+ let strong=allWords.filter(w=>w.level>=3).length;
+ let percent=allWords.length?(strong/allWords.length)*100:0;
+ document.getElementById("progressBar").style.width=percent+"%";
 }
 
 // REVISION
 function showRevision(){
+ if(!allWords.length){
+  output.innerText="No words added yet";
+  return;
+ }
 
-  if(!allWords.length) return output.innerText="No words";
+ let t="";
+ for(let i=0;i<Math.min(4,allWords.length);i++){
+  let w=allWords[(revIndex+i)%allWords.length];
+  t+=`${cap(w.word)}\n${w.meaning}\n${w.trans}\n\n`;
+ }
 
-  let text="";
-
-  for(let i=0;i<4;i++){
-    let w=allWords[(revIndex+i)%allWords.length];
-
-    text+=`${cap(w.word)}
-${w.meaning}
-${w.trans}
-
-------\n`;
-  }
-
-  output.innerText=text;
+ output.innerText=t;
 }
 
 function nextRevision(){
-  revIndex=(revIndex+4)%allWords.length;
-  showRevision();
+ revIndex=(revIndex+4)%allWords.length;
+ showRevision();
 }
 
 // QUIZ
 function generateQuiz(){
 
-  if(allWords.length<4){
-    quizBox.innerText="Add 4 words";
-    return;
-  }
+ if(allWords.length<4){
+  quizBox.innerText="Add at least 4 items";
+  return;
+ }
 
-  let pool=[...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
-  currentWord=pool[Math.floor(Math.random()*5)];
+ let pool=[...allWords].sort((a,b)=>(a.level||0)-(b.level||0));
 
-  currentAnswer=currentWord.meaning;
+ currentWord=pool[Math.floor(Math.random()*Math.min(5,pool.length))];
+ currentAnswer=currentWord.meaning;
 
-  let opts=[currentAnswer];
+ let opts=[currentAnswer];
 
-  while(opts.length<4){
-    let r=allWords[Math.floor(Math.random()*allWords.length)].meaning;
-    if(!opts.includes(r)) opts.push(r);
-  }
+ while(opts.length<4){
+  let r=allWords[Math.floor(Math.random()*allWords.length)].meaning;
+  if(!opts.includes(r)) opts.push(r);
+ }
 
-  opts.sort(()=>Math.random()-0.5);
+ opts.sort(()=>Math.random()-0.5);
 
-  let html=`<h3>${cap(currentWord.word)}</h3>`;
+ let html=`<h3>${cap(currentWord.word)}</h3>`;
 
-  opts.forEach(o=>{
-    html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
-  });
+ opts.forEach(o=>{
+  html+=`<button onclick="checkAnswer('${o.replace(/'/g,"")}')">${o}</button>`;
+ });
 
-  quizBox.innerHTML=html;
+ quizBox.innerHTML=html;
 }
 
 // CHECK
 async function checkAnswer(ans){
 
-  let lvl=currentWord.level||0;
+ let lvl=currentWord.level||0;
 
-  if(ans===currentAnswer){
-    lvl=Math.min(lvl+1,4);
-  }else{
-    lvl=Math.max(lvl-1,0);
-  }
+ if(ans===currentAnswer){
+  alert("✅ Correct");
+  xp+=10;
+  lvl=Math.min(lvl+1,5);
+ }else{
+  alert("❌ Wrong");
+  xp-=5;
+  lvl=Math.max(lvl-1,0);
+ }
 
-  await db.collection("users").doc(userId)
-    .collection("words").doc(currentWord.id)
-    .update({level:lvl});
+ updateXP();
 
-  loadWords();
+ await db.collection("users").doc(userId)
+  .collection("words").doc(currentWord.id)
+  .update({level:lvl});
+
+ loadWords();
 }
 
-// PLAY PAUSE
+// PLAY BUTTONS
 function toggleRevision(){
-  if(revInterval){
-    clearInterval(revInterval);
-    revInterval=null;
-  }else{
-    revInterval=setInterval(nextRevision,10000);
-  }
+ let btn=document.getElementById("revBtn");
+
+ if(revInt){
+  clearInterval(revInt);
+  revInt=null;
+  btn.innerText="▶ Start Revision";
+ }else{
+  revInt=setInterval(nextRevision,10000);
+  btn.innerText="⏸ Pause Revision";
+ }
 }
 
 function toggleQuiz(){
-  if(quizInterval){
-    clearInterval(quizInterval);
-    quizInterval=null;
-  }else{
-    quizInterval=setInterval(generateQuiz,15000);
-  }
+ let btn=document.getElementById("quizBtn");
+
+ quizRunning=!quizRunning;
+
+ if(quizRunning){
+  generateQuiz();
+  btn.innerText="⏸ Pause Quiz";
+ }else{
+  btn.innerText="▶ Start Quiz";
+ }
+}
+
+// BACKUP
+function exportData(){
+ let data=JSON.stringify(localStorage);
+ let blob=new Blob([data]);
+ let a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="backup.json";
+ a.click();
+}
+
+function importData(e){
+ let f=e.target.files[0];
+ let r=new FileReader();
+ r.onload=()=>{
+  let d=JSON.parse(r.result);
+  for(let k in d) localStorage.setItem(k,d[k]);
+  location.reload();
+ };
+ r.readAsText(f);
 }
 
 // HELPERS
-function cap(w){
-  return w.charAt(0).toUpperCase()+w.slice(1);
-}
-
-function speak(word){
-  let u=new SpeechSynthesisUtterance(word);
-  speechSynthesis.speak(u);
-}
-
-function toggleDark(){
-  document.body.classList.toggle("dark");
-}
-
-function langSelect(){
-  return document.getElementById("lang").value;
-}
+function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
+function toggleDark(){document.body.classList.toggle("dark");}
 
 </script>
-
 </body>
 </html>
