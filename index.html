@@ -160,12 +160,8 @@ button{
 
 <!-- 🆕 REVISION MODE -->
 
-<h4>📚 Revision Mode</h4>
-<select id="revMode" onchange="changeRevisionMode()">
-<option value="anki">🧠 Anki System</option>
-<option value="alpha">🔤 Alphabet Order</option>
-<option value="input">🕒 Input Order</option>
-</select>
+
+
 
 <input id="wordInput" placeholder="Enter">
 
@@ -183,6 +179,7 @@ button{
 <div class="box" id="output"></div>
 
 <h4>📚 Revision Mode</h4>
+<select id="revMode" onchange="changeRevisionMode()">
 <option value="anki">🧠 Anki System</option>
 <option value="alpha">🔤 Alphabet Order</option>
 <option value="input">🕒 Input Order</option>
@@ -378,9 +375,8 @@ function showRevision(){
  let sorted = [];
 
  // 🔤 ALPHABET MODE (DEFAULT)
- else if(revisionMode==="alpha"){
+  if(revisionMode==="alpha"){
   sorted=[...allWords].sort((a,b)=>a.word.localeCompare(b.word));
-
 
  }
 
