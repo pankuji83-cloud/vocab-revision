@@ -167,7 +167,15 @@ button{
 
 <select id="lang">
 <option value="hi">Hindi</option>
-<option value="pb">Punjabi</option>
+<option value="pa">Punjabi</option>
+<option value="bn">Bengali</option>
+<option value="gu">Gujarati</option>
+<option value="mr">Marathi</option>
+<option value="ta">Tamil</option>
+<option value="te">Telugu</option>
+<option value="kn">Kannada</option>
+<option value="ml">Malayalam</option>
+<option value="ur">Urdu</option>
 <option value="fr">French</option>
 <option value="es">Spanish</option>
 </select>
@@ -180,8 +188,8 @@ button{
 
 <h4>📚 Revision Mode</h4>
 <select id="revMode" onchange="changeRevisionMode()">
-<option value="anki">🧠 Anki System</option>
 <option value="alpha">🔤 Alphabet Order</option>
+<option value="anki">🧠 Anki System</option>
 <option value="input">🕒 Input Order</option>
 </select>
 
@@ -300,8 +308,8 @@ function updateXP(){
 //////////////////////////////////////////////////////////////
 // [C6] ADD WORD
 //////////////////////////////////////////////////////////////
-async function addWord(){
- let word=wordInput.value.trim().toLowerCase();
+async function addWord(){ 
+ let word=wordInput.value.trim().toLowerCase().replace(/[^a-z\s]/g,"");
  if(!word) return alert("Enter word");
 
  let mode=document.getElementById("mode").value;
@@ -311,20 +319,45 @@ async function addWord(){
 
  if(!existing.empty) return alert("Already exists");
 
- let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
- let data=await res.json();
+ // 📘 DICTIONARY API
+ let meaning="No meaning";
+ try{
+  let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
+  let data=await res.json();
 
- let meaning=data[0]?data[0].meanings[0].definitions[0].definition:"No meaning";
+  if(data[0] && data[0].meanings){
+    meaning=data[0].meanings[0].definitions[0].definition;
+  }
+ }catch(e){
+  console.log("Meaning error",e);
+ }
 
+ // 🌐 TRANSLATION
  let lang=document.getElementById("lang").value;
- let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
- let td=await t.json();
- let trans=td.responseData.translatedText;
+ let trans = "Translation not available";
 
+ try{
+  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
+  let td=await t.json();
+
+  if(td.responseData && td.responseData.translatedText){
+    trans = td.responseData.translatedText;
+  }
+ }catch(e){
+  console.log("Translation error", e);
+ }
+
+ // 🔥 SAVE TO FIREBASE
  await db.collection("users").doc(userId).collection("words").add({
-  word,meaning,trans,mode,level:0
+  word,
+  meaning,
+  trans,
+  mode,
+  level:0,
+  createdAt: Date.now()   // 🆕 IMPORTANT (input order ke liye)
  });
 
+ // UI UPDATE
  wordInput.value="";
  meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
 
@@ -333,6 +366,7 @@ async function addWord(){
  if(!revInt) toggleRevision();
  if(!quizRunning) toggleQuiz();
 }
+
 
 //////////////////////////////////////////////////////////////
 // [C7] LOAD + PROGRESS
@@ -386,10 +420,10 @@ function showRevision(){
 
  }
 
- // 🕒 INPUT ORDER (NO SORT)
- else{
-  sorted=[...allWords];
- }
+// 🕒 INPUT ORDER (FIXED)
+else{
+  sorted=[...allWords].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+}
 
  let t="";
  for(let i=0;i<Math.min(4,sorted.length);i++){
