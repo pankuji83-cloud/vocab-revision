@@ -149,7 +149,8 @@ button{
 
 <h4 id="streak">🔥 Streak: 0</h4>
 <h4 id="xp">⭐ XP: 0</h4>
-
+<h4 id="totalStats">📊 Total: 0 | Words: 0 | Idioms: 0 | Phrasal: 0</h4>
+  
 <div class="progress"><div id="progressBar"></div></div>
 
 <select id="mode" onchange="loadWords()">
@@ -374,13 +375,15 @@ async function addWord(){
 async function loadWords(){
  let mode=document.getElementById("mode").value;
 
+ // 🔥 FIX: get ALL words (for correct counts)
  let snap=await db.collection("users").doc(userId)
-  .collection("words").where("mode","==",mode).get();
+  .collection("words").get();
 
  allWords=[];
  snap.forEach(d=>allWords.push({...d.data(),id:d.id}));
 
  updateProgress();
+ updateCounts();   // 🆕 ADD THIS
  showRevision();
  generateQuiz();
 }
@@ -391,6 +394,21 @@ function updateProgress(){
  document.getElementById("progressBar").style.width=percent+"%";
 }
 
+// 🆕 NEW FUNCTION (TOTAL STATS LINE)
+function updateCounts(){
+ let words=0, idioms=0, phrasal=0;
+
+ allWords.forEach(w=>{
+  if(w.mode==="word") words++;
+  else if(w.mode==="idiom") idioms++;
+  else if(w.mode==="phrasal") phrasal++;
+ });
+
+ let total = words + idioms + phrasal;
+
+ document.getElementById("totalStats").innerText =
+  `📊 Total: ${total} | Words: ${words} | Idioms: ${idioms} | Phrasal: ${phrasal}`;
+}
 //////////////////////////////////////////////////////////////
 // [C8] REVISION SYSTEM
 //////////////////////////////////////////////////////////////
