@@ -415,6 +415,7 @@ function updateCounts(){
 
 function changeRevisionMode(){
  revisionMode = document.getElementById("revMode").value;
+ revIndex = 0;   // 🆕 ADD THIS (VERY IMPORTANT)
  showRevision();
 }
 
@@ -428,7 +429,8 @@ function showRevision(){
 
  // 🔤 ALPHABET MODE (DEFAULT)
   if(revisionMode==="alpha"){
-  sorted=[...allWords].sort((a,b)=>a.word.localeCompare(b.word));
+ sorted=[...allWords].sort((a,b)=>
+ (a.word || "").toLowerCase().localeCompare((b.word || "").toLowerCase())
 
  }
 
