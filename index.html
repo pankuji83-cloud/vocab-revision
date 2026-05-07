@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
 
@@ -11,8 +12,181 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <!-- ===================== [A2] CSS ===================== -->
+
+
 <style>
 
+/* ================= DESKTOP REAL SPLIT ================= */
+
+.desktopSplit{
+  display:block;
+}
+
+@media(min-width:1000px){
+
+  .desktopSplit{
+    display:flex;
+    gap:30px;
+    align-items:flex-start;
+  }
+
+  .leftPanel{
+    width:50%;
+  }
+
+  .rightPanel{
+    width:50%;
+    position:sticky;
+    top:20px;
+  }
+
+}
+
+@media(max-width:999px){
+
+  .desktopSplit{
+    display:block;
+  }
+
+  .leftPanel,
+  .rightPanel{
+    width:100%;
+  }
+
+}
+
+/* MOBILE AUTO NORMAL */
+@media(max-width:999px){
+
+  .leftPanel,
+  .rightPanel{
+    width:100%;
+  }
+
+  .rightPanel{
+    margin-top:20px;
+  }
+
+}
+
+/* 🔥 FIX BROKEN DESKTOP LAYOUT */
+
+#appPage{
+  width:100%;
+}
+
+#appPage input,
+#appPage select,
+#appPage button,
+#appPage .box,
+#appPage h3,
+#appPage h4,
+#appPage .progress{
+  display:block;
+  width:100%;
+}
+
+.leftPanel > *{
+  width:100%;
+}
+
+/* CONTAINER FIX */
+.container{
+  width:100%;
+  max-width:1600px;
+  margin:auto;
+  padding:20px;
+}
+
+/* ================= PREMIUM UI ADD ================= */
+
+/* 🔥 Gradient Animated Background (FIXED) */
+body{
+  margin:0;
+  font-family:'Segoe UI',sans-serif;
+  color:white;
+  transition:.3s;
+  background: linear-gradient(-45deg,#1f1c2c,#928dab,#1f1c2c,#ff7a18);
+  background-size: 400% 400%;
+  animation: gradientMove 10s ease infinite;
+}
+
+@keyframes gradientMove{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
+
+/* ✨ Glass Card (MERGED + FIXED) */
+.box{
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(10px);
+  border-radius:15px;
+  padding:15px;
+  margin-top:15px;
+  transition: all 0.3s ease;
+}
+
+.box:hover{
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+}
+
+/* 🎯 Input Glow Effect */
+input,select{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:10px;
+}
+
+input:focus, select:focus{
+  outline:none;
+  box-shadow: 0 0 10px rgba(0,255,200,0.7);
+  transform: scale(1.02);
+}
+
+/* 💎 Button Animation */
+button{
+  width:100%;
+  padding:12px;
+  margin-top:10px;
+  border:none;
+  border-radius:12px;
+  font-weight:bold;
+  cursor:pointer;
+  background: linear-gradient(45deg,#ff7a18,#ffb347);
+  transition: all 0.25s ease;
+}
+
+button:hover{
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+}
+
+button:active{
+  transform: scale(0.95);
+}
+
+#revBtn,#quizBtn{
+  background: linear-gradient(45deg,#00c6ff,#0072ff);
+  color:white;
+}
+
+/* ✨ Login Box Upgrade */
+#loginPage{
+  background: rgba(255,255,255,0.05);
+  padding:20px;
+  border-radius:15px;
+  backdrop-filter: blur(10px);
+  animation: fadeIn 1s ease;
+}
+
+@keyframes fadeIn{
+  from{opacity:0; transform: translateY(20px);}
+  to{opacity:1; transform: translateY(0);}
+}
 
 /* SPLASH SCREEN */
 #splashScreen{
@@ -40,61 +214,18 @@
 
 *{ box-sizing:border-box; }
 
-body{
-
-
-
-
-  margin:0;
-  font-family:'Segoe UI',sans-serif;
-  background: linear-gradient(135deg,#1f1c2c,#928dab);
-  color:white;
-  transition:.3s;
-}
-
 .dark{ background:#0f0f0f; }
 
 .container{
-  max-width:420px;
-  margin:20px auto;
-  padding:15px;
+  width:100%;
+  max-width:1400px;
+  margin:auto;
+  padding:20px;
 }
 
 h1{
   text-align:center;
   margin-bottom:20px;
-}
-
-.box{
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
-  border-radius:15px;
-  padding:15px;
-  margin-top:15px;
-}
-
-input,select{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border:none;
-  border-radius:10px;
-}
-
-button{
-  width:100%;
-  padding:12px;
-  margin-top:10px;
-  border:none;
-  border-radius:12px;
-  font-weight:bold;
-  cursor:pointer;
-  background: linear-gradient(45deg,#ff7a18,#ffb347);
-}
-
-#revBtn,#quizBtn{
-  background: linear-gradient(45deg,#00c6ff,#0072ff);
-  color:white;
 }
 
 .progress{
@@ -113,11 +244,63 @@ button{
 
 .hidden{ display:none; }
 
+/* 🔒 Stop animation after login */
+.stop-animation{
+  animation: none !important;
+  background: linear-gradient(135deg,#1f1c2c,#928dab) !important;
+}
+
+#menuBtn{
+ position:fixed;
+ top:15px;
+ right:15px;
+ font-size:24px;
+ background:#000;
+ padding:10px;
+ border-radius:10px;
+ z-index:999;
+}
+
+#sideMenu{
+ position:fixed;
+ top:0;
+ right:0;
+ width:220px;
+ height:100%;
+ background:#111;
+ padding:20px;
+}
+
+#toast{
+position:fixed;
+top:20px;
+right:20px;
+padding:15px 18px;
+background:#111827;
+color:#fff;
+border-radius:12px;
+z-index:9999;
+display:none;
+max-width:300px;
+box-shadow:0 10px 25px rgba(0,0,0,.4);
+font-weight:bold;
+}
+
+.word-card{
+padding:15px;
+border-radius:16px;
+background:#0f172a;
+margin-top:12px;
+line-height:1.7;
+border:1px solid rgba(255,255,255,.08);
+}
+
 </style>
-</head>
 
 <!-- ===================== [B1] BODY ===================== -->
 <body>
+<div id="toast"></div>
+
 
 <!-- ===================== [S1] SPLASH SCREEN ===================== -->
 <div id="splashScreen">
@@ -126,21 +309,39 @@ button{
 </div>
 
 
+<!-- 🔥 MENU BUTTON -->
+<div id="menuBtn" onclick="toggleMenu()">☰</div>
+
+<div id="sideMenu" class="hidden">
+  <h3>⚙ Settings</h3>
+
+
+<!-- BACKUP -->
+<button onclick="setBackupFrequency('daily')">📅 Daily Backup</button>
+<button onclick="setBackupFrequency('weekly')">📆 Weekly Backup</button>
+<button onclick="setBackupFrequency('monthly')">🗓 Monthly Backup</button>
+
+<button onclick="restoreLatestBackup()">🔄 Restore</button>
+<button onclick="showBackupHistory()">📊 History</button>
+
+
+  <button onclick="openSettings()">Settings</button>
+  <button onclick="startGuide()">📘 App Guide</button>
+  <button onclick="deleteAccount()">❌ Delete Account</button>
+</div>
+
 
 <div class="container">
 
-<h1>📘 Vocab Pro MAX+</h1>
-
-<!-- ===================== [B2] LOGIN UI ===================== -->
-<div id="loginPage">
-<input id="email" placeholder="Email">
-<input id="password" placeholder="Password">
-<button onclick="signup()">Signup</button>
-<button onclick="login()">Login</button>
-</div>
-
-<!-- ===================== [B3] APP UI ===================== -->
+<!-- ================= APP PAGE ================= -->
 <div id="appPage" class="hidden">
+
+<div class="desktopSplit">
+
+<!-- ================= LEFT PANEL ================= -->
+<div class="leftPanel">
+
+<h1>📘 Vocab Pro MAX+</h1>
 
 <button onclick="logout()">Logout</button>
 <button onclick="toggleDark()">🌙 Dark</button>
@@ -149,22 +350,21 @@ button{
 
 <h4 id="streak">🔥 Streak: 0</h4>
 <h4 id="xp">⭐ XP: 0</h4>
-<h4 id="totalStats">📊 Total: 0 | Words: 0 | Idioms: 0 | Phrasal: 0</h4>
-  
-<div class="progress"><div id="progressBar"></div></div>
+<h4 id="totalStats">
+📊 Total: 0 | Words: 0 | Idioms: 0 | Phrasal: 0
+</h4>
+
+<div class="progress">
+  <div id="progressBar"></div>
+</div>
 
 <select id="mode" onchange="loadWords()">
-<option value="word">Word</option>
-<option value="idiom">Idiom</option>
-<option value="phrasal">Phrasal</option>
+  <option value="word">Word</option>
+  <option value="idiom">Idiom</option>
+  <option value="phrasal">Phrasal</option>
 </select>
 
-<!-- 🆕 REVISION MODE -->
-
-
-
-
-<input id="wordInput" placeholder="Enter">
+<input id="wordInput" placeholder="Enter Word">
 
 <select id="lang">
 <option value="hi">Hindi</option>
@@ -185,29 +385,82 @@ button{
 
 <div class="box" id="meaningBox"></div>
 
-<div class="box" id="output"></div>
+</div>
+
+<!-- ================= RIGHT PANEL ================= -->
+<div class="rightPanel">
 
 <h4>📚 Revision Mode</h4>
+
 <select id="revMode" onchange="changeRevisionMode()">
 <option value="alpha">🔤 Alphabet Order</option>
 <option value="anki">🧠 Anki System</option>
 <option value="input">🕒 Input Order</option>
 </select>
 
-<button id="revBtn" onclick="toggleRevision()">▶ Start Revision</button>
+<button id="revBtn" onclick="toggleRevision()">
+▶ Start Revision
+</button>
+
+<div class="box" id="output"></div>
 
 <div class="box" id="quizBox"></div>
-<button id="quizBtn" onclick="toggleQuiz()">▶ Start Quiz</button>
 
-<!-- BACKUP -->
-<button onclick="setBackupFrequency('daily')">📅 Daily Backup</button>
-<button onclick="setBackupFrequency('weekly')">📆 Weekly Backup</button>
-<button onclick="setBackupFrequency('monthly')">🗓 Monthly Backup</button>
-
-<button onclick="restoreLatestBackup()">🔄 Restore</button>
-<button onclick="showBackupHistory()">📊 History</button>
+<button id="quizBtn" onclick="toggleQuiz()">
+▶ Start Quiz
+</button>
 
 </div>
+
+</div>
+</div>
+
+<!-- ================= LOGIN PAGE ================= -->
+<div id="loginPage">
+
+<div class="box">
+
+<h2 id="authTitle" style="text-align:center;">
+Welcome Back 👋
+</h2>
+
+<div style="display:flex; gap:10px;">
+<button onclick="switchAuth('login')" id="loginTab">
+Login
+</button>
+
+<button onclick="switchAuth('signup')" id="signupTab">
+Signup
+</button>
+</div>
+
+<input id="email" placeholder="Email">
+
+<input id="password" type="password" placeholder="Password">
+
+<span onclick="togglePassword()" style="cursor:pointer;">
+👁 Show Password
+</span>
+
+<input id="confirmPassword"
+type="password"
+placeholder="Confirm Password"
+class="hidden">
+
+<button id="authBtn" onclick="handleAuth()">
+Login
+</button>
+
+<hr>
+
+<button onclick="googleLogin()">
+🔐 Continue with Google
+</button>
+
+</div>
+
+</div>
+
 </div>
 
 <!-- ===================== [C1] SCRIPT START ===================== -->
@@ -228,6 +481,8 @@ const db=firebase.firestore();
 //////////////////////////////////////////////////////////////
 // [C3] GLOBAL STATE
 //////////////////////////////////////////////////////////////
+
+let authMode = "login";
 let userId="";
 let revisionMode = "anki";
 let allWords=[];
@@ -245,9 +500,25 @@ let xp=Number(localStorage.getItem("xp"))||0;
 let streak=Number(localStorage.getItem("streak"))||0;
 let lastDate=localStorage.getItem("lastDate")||"";
 
+function startGuide(){
+
+ toast("👋 Welcome!\n\n1. Add words\n2. Use Revision\n3. Try Quiz\n4. Backup your data");
+
+ localStorage.setItem("guide_seen", true);
+}
+
+// auto show
+if(!localStorage.getItem("guide_seen")){
+ setTimeout(startGuide,2000);
+}
+
+
+
 //////////////////////////////////////////////////////////////
 // [C4] AUTH SYSTEM
 //////////////////////////////////////////////////////////////
+
+
 auth.onAuthStateChanged(u=>{
 
  // 🔥 SPLASH HIDE AFTER LOAD
@@ -255,10 +526,12 @@ auth.onAuthStateChanged(u=>{
    document.getElementById("splashScreen").style.display="none";
  },1500);
 
-
  if(u){
   userId=u.uid;
-  document.getElementById("user").innerText="Logged: "+u.email;
+
+  document.body.classList.add("stop-animation");
+
+  document.getElementById("user").innerText="Logged: "+(u.email || "Phone User");
 
   loginPage.classList.add("hidden");
   appPage.classList.remove("hidden");
@@ -278,9 +551,102 @@ auth.onAuthStateChanged(u=>{
  }
 });
 
-function signup(){auth.createUserWithEmailAndPassword(email.value,password.value);}
-function login(){auth.signInWithEmailAndPassword(email.value,password.value);}
 function logout(){auth.signOut();}
+
+
+// 🔁 SWITCH LOGIN / SIGNUP
+function switchAuth(mode){
+ authMode = mode;
+
+ document.getElementById("authTitle").innerText =
+  mode==="login" ? "Welcome Back 👋" : "Create Your Account 🚀";
+
+ document.getElementById("authBtn").innerText =
+  mode==="login" ? "Login" : "Signup";
+
+ document.getElementById("confirmPassword").classList.toggle("hidden", mode==="login");
+}
+
+
+// 👁 PASSWORD TOGGLE
+function togglePassword(){
+ let p = document.getElementById("password");
+ p.type = p.type === "password" ? "text" : "password";
+}
+
+
+// 🔐 EMAIL VALIDATION (STRONG FIX)
+function isValidEmail(email){
+
+ // ✅ format check
+ const regex = /^[^\s@]+@[^\s@]+\.(com|in|org|net|edu)$/i;
+ if(!regex.test(email)) return false;
+
+ // ❌ common fake domains
+ const blocked = ["gamil.com","gmial.com","outlok.com","yaho.com","hotnail.com"];
+
+ let domain = email.split("@")[1].toLowerCase();
+
+ if(blocked.includes(domain)) return false;
+
+ return true;
+
+
+}
+
+
+// 🔐 MAIN AUTH HANDLER
+async function handleAuth(){
+
+ let emailVal = email.value.trim();
+ let passVal = password.value.trim();
+ let confirmVal = confirmPassword.value.trim();
+
+ // ❌ STRICT EMAIL CHECK
+ if(!isValidEmail(emailVal)){
+   return toast("❌ Invalid Email (only .com .in .org allowed)");
+ }
+
+ if(passVal.length < 6){
+   return toast("Password must be 6+ chars");
+ }
+
+ let btn = document.getElementById("authBtn");
+ btn.innerText = "Loading...";
+ btn.disabled = true;
+
+ try{
+
+  if(authMode==="login"){
+    await auth.signInWithEmailAndPassword(emailVal,passVal);
+  }else{
+
+    if(passVal !== confirmVal){
+      toast("Passwords do not match");
+      btn.innerText = "Signup";
+      btn.disabled = false;
+      return;
+    }
+
+    await auth.createUserWithEmailAndPassword(emailVal,passVal);
+  }
+
+ }catch(e){
+  toast(e.message);
+ }
+
+ btn.innerText = authMode==="login" ? "Login" : "Signup";
+ btn.disabled = false;
+}
+
+
+// 🔥 GOOGLE LOGIN (FIX SAFE)
+function googleLogin(){
+ let provider = new firebase.auth.GoogleAuthProvider();
+ auth.signInWithPopup(provider)
+  .catch(err => toast(err.message));
+}
+
 
 //////////////////////////////////////////////////////////////
 // [C5] STREAK + XP
@@ -311,14 +677,14 @@ function updateXP(){
 //////////////////////////////////////////////////////////////
 async function addWord(){ 
  let word=wordInput.value.trim().toLowerCase().replace(/[^a-z\s]/g,"");
- if(!word) return alert("Enter word");
+ if(!word) return toast("Enter word");
 
  let mode=document.getElementById("mode").value;
 
  let existing=await db.collection("users").doc(userId)
  .collection("words").where("word","==",word).get();
 
- if(!existing.empty) return alert("Already exists");
+ if(!existing.empty) return toast("Already exists");
 
  // 📘 DICTIONARY API
  let meaning="No meaning";
@@ -329,6 +695,18 @@ async function addWord(){
   if(data[0] && data[0].meanings){
     meaning=data[0].meanings[0].definitions[0].definition;
   }
+
+// ❌ Invalid word detect
+if(!data[0]){
+ let keepWord = confirm(
+   "❌ Word not found in dictionary.\n\nDo you still want to save it?"
+ );
+
+ if(!keepWord){
+   return;
+ }
+}
+
  }catch(e){
   console.log("Meaning error",e);
  }
@@ -445,13 +823,23 @@ else{
   sorted=[...allWords].sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
 }
 
- let t="";
- for(let i=0;i<Math.min(4,sorted.length);i++){
-  let w=sorted[(revIndex+i)%sorted.length];
-  t+=`${cap(w.word)}\n${w.meaning}\n${w.trans}\n\n`;
- }
+let t="";
 
- output.innerText=t;
+for(let i=0;i<Math.min(4,sorted.length);i++){
+
+ let w=sorted[(revIndex+i)%sorted.length];
+
+ t+=`
+ <div class="word-card">
+   <h3>${cap(w.word)}</h3>
+   <p>${w.meaning}</p>
+   <p>${w.trans}</p>
+ </div>
+ `;
+}
+
+output.innerHTML=t;
+
 }
 
 
@@ -494,14 +882,32 @@ function generateQuiz(){
 }
 
 async function checkAnswer(ans){
+
+ let buttons = document.querySelectorAll("#quizBox button");
  let lvl=currentWord.level||0;
 
+ buttons.forEach(btn=>{
+
+   // correct answer = green
+   if(btn.innerText === currentAnswer){
+     btn.style.background = "green";
+     btn.style.color = "white";
+   }
+
+   // wrong clicked answer = red
+   if(btn.innerText === ans && ans !== currentAnswer){
+     btn.style.background = "red";
+     btn.style.color = "white";
+   }
+
+   btn.disabled = true;
+ });
+
+ // XP + LEVEL
  if(ans===currentAnswer){
-  alert("✅ Correct");
   xp+=10;
   lvl=Math.min(lvl+1,5);
  }else{
-  alert("❌ Wrong");
   xp-=5;
   lvl=Math.max(lvl-1,0);
  }
@@ -512,8 +918,13 @@ async function checkAnswer(ans){
   .collection("words").doc(currentWord.id)
   .update({level:lvl});
 
- loadWords();
+ // 🔥 NEXT QUESTION AUTO AFTER 4 SEC
+ setTimeout(()=>{
+   loadWords();
+   generateQuiz();
+ },4000);
 }
+
 
 //////////////////////////////////////////////////////////////
 // [C10] PLAY CONTROLS
@@ -550,7 +961,7 @@ function toggleQuiz(){
 function setBackupFrequency(freq){
  backupFrequency=freq;
  localStorage.setItem("backup_freq",freq);
- alert("Backup set: "+freq);
+ toast("Backup set: "+freq);
 }
 
 function shouldBackup(){
@@ -583,9 +994,82 @@ async function autoBackup(){
 //////////////////////////////////////////////////////////////
 // [C12] HELPERS
 //////////////////////////////////////////////////////////////
+
+
+function toast(msg){
+
+ const t=document.getElementById("toast");
+
+ t.innerText=msg;
+ t.style.display="block";
+
+ clearTimeout(window.toastTimer);
+
+ window.toastTimer=setTimeout(()=>{
+   t.style.display="none";
+ },3000);
+}
+
+function sanitize(text=''){
+ return text.replace(/[<>]/g,'').trim();
+}
+
+
 function cap(w){return w.charAt(0).toUpperCase()+w.slice(1);}
 function toggleDark(){document.body.classList.toggle("dark");}
 
+// 🧠 MODE INSTRUCTION
+document.getElementById("mode").addEventListener("change", ()=>{
+
+ let mode = document.getElementById("mode").value;
+
+ if(mode==="word"){
+   toast("📘 Enter a normal vocabulary word");
+ }
+
+ else if(mode==="idiom"){
+   toast("💡 Enter a full idiom\nExample: Break a leg");
+ }
+
+ else if(mode==="phrasal"){
+   toast("🗣 Enter a phrasal verb\nExample: Give up");
+ }
+
+});
+
+// ❌ DELETE ACCOUNT
+
+async function deleteAccount(){
+
+ if(!confirm("Are you sure?")) return;
+
+ try{
+
+ // 🔥 delete firestore data optional later
+
+   await auth.currentUser.delete();
+   toast("Account deleted");
+ }catch(e){
+   toast(e.message);
+ }
+}
+
+function detectDevice(){
+ if(window.innerWidth < 600){
+   document.body.classList.add("mobile");
+ }else{
+   document.body.classList.add("desktop");
+ }
+}
+
+detectDevice();
+window.addEventListener("resize", detectDevice);
+
+function toggleMenu(){
+ document.getElementById("sideMenu").classList.toggle("hidden");
+}
+
 </script>
+
 </body>
 </html>
