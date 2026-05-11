@@ -898,93 +898,143 @@ function updateXP(){
 //////////////////////////////////////////////////////////////
 // [C6] ADD WORD
 //////////////////////////////////////////////////////////////
-async function addWord(){ 
- let word=wordInput.value.trim().toLowerCase().replace(/[^a-z\s]/g,"");
- if(!word) return toast("Enter word");
+async function addWord(){
 
- let mode=document.getElementById("mode").value;
-
- let existing=await db.collection("users").doc(userId)
- .collection("words").where("word","==",word).get();
-
- if(!existing.empty) return toast("Already exists");
-
- // 📘 DICTIONARY API
- let meaning="No meaning";
- try{
-  let res=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`);
-  let data=await res.json();
-
-  if(data[0] && data[0].meanings){
-    meaning=data[0].meanings[0].definitions[0].definition;
-  }
-
-// ❌ Invalid word detect
-if(!data[0]){
- let keepWord = confirm(
-   "❌ Word not found in dictionary.\n\nDo you still want to save it?"
- );
-
- if(!keepWord){
-   return;
- }
-}
-
- }catch(e){
-  console.log("Meaning error",e);
+ if(!userId){
+   return toast("Login required");
  }
 
- // 🌐 TRANSLATION
- let lang=document.getElementById("lang").value;
- let trans = "Translation not available";
+ let word = document.getElementById("wordInput")
+ .value
+ .trim()
+ .toLowerCase();
+
+ if(!word){
+   return toast("Enter word");
+ }
+
+ let mode = document.getElementById("mode").value;
 
  try{
-  let t=await fetch(`https://api.mymemory.translated.net/get?q=${word}&langpair=en|${lang}`);
-  let td=await t.json();
 
-  if(td.responseData && td.responseData.translatedText){
-    trans = td.responseData.translatedText;
-  }
+   // CHECK DUPLICATE
+   let existing = await db.collection("users")
+   .doc(userId)
+   .collection("words")
+   .where("word","==",word)
+   .where("mode","==",mode)
+   .get();
+
+   if(!existing.empty){
+     return toast("Already exists");
+   }
+
+   // DEFAULT VALUES
+   let meaning = "No meaning found";
+   let trans = "No translation";
+
+   // ================= DICTIONARY =================
+   try{
+
+     let res = await fetch(
+      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`
+     );
+
+     let data = await res.json();
+
+     if(Array.isArray(data) &&
+        data[0] &&
+        data[0].meanings &&
+        data[0].meanings[0] &&
+        data[0].meanings[0].definitions &&
+        data[0].meanings[0].definitions[0]){
+
+       meaning =
+       data[0].meanings[0]
+       .definitions[0]
+       .definition;
+     }
+
+   }catch(err){
+     console.log("Dictionary Error",err);
+   }
+
+   // ================= TRANSLATION =================
+   try{
+
+     let lang =
+     document.getElementById("lang").value;
+
+     let t = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=en|${lang}`
+     );
+
+     let td = await t.json();
+
+     if(td.responseData){
+       trans = td.responseData.translatedText;
+     }
+
+   }catch(err){
+     console.log("Translation Error",err);
+   }
+
+   // ================= SAVE =================
+   await db.collection("users")
+   .doc(userId)
+   .collection("words")
+   .add({
+     word,
+     meaning,
+     trans,
+     mode,
+     level:0,
+     createdAt:Date.now()
+   });
+
+   // ================= UI =================
+   document.getElementById("wordInput").value="";
+
+   document.getElementById("meaningBox").innerHTML=
+   `
+   <h3>${cap(word)}</h3>
+   <p>${meaning}</p>
+   <p>${trans}</p>
+   `;
+
+   toast("✅ Word Added");
+
+   loadWords();
+
  }catch(e){
-  console.log("Translation error", e);
+
+   console.log(e);
+
+   toast("❌ Failed to add word");
  }
-
- // 🔥 SAVE TO FIREBASE
- await db.collection("users").doc(userId).collection("words").add({
-  word,
-  meaning,
-  trans,
-  mode,
-  level:0,
-  createdAt: Date.now()   // 🆕 IMPORTANT (input order ke liye)
- });
-
- // UI UPDATE
- wordInput.value="";
- meaningBox.innerText=`${cap(word)}\n${meaning}\n${trans}`;
-
- loadWords();
-
- if(!revInt) toggleRevision();
- if(!quizRunning) toggleQuiz();
 }
-
 
 //////////////////////////////////////////////////////////////
 // [C7] LOAD + PROGRESS
 //////////////////////////////////////////////////////////////
 async function loadWords(){
+
  let mode=document.getElementById("mode").value;
 
- // 🔥 FIX: get ALL words (for correct counts)
- let snap=await db.collection("users").doc(userId)
-  .collection("words").get();
+ let snap=await db.collection("users")
+  .doc(userId)
+  .collection("words")
+  .where("mode","==",mode)
+  .get();
 
  allWords=[];
- snap.forEach(d=>allWords.push({...d.data(),id:d.id}));
+
+ snap.forEach(d=>
+   allWords.push({...d.data(),id:d.id})
+ );
 
  updateProgress();
- updateCounts();   // 🆕 ADD THIS
+
  showRevision();
  generateQuiz();
 }
